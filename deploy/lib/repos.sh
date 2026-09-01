@@ -20,7 +20,7 @@ install_caddy_repo() {
         ubuntu|debian)
             install -d -m 0755 /usr/share/keyrings
             curl -fsSL "${CADDY_GPG_URL}" \
-                | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+                | gpg --batch --yes --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
             echo "deb [signed-by=/usr/share/keyrings/caddy-stable-archive-keyring.gpg] https://dl.cloudsmith.io/public/caddy/stable/deb/${DISTRO_FAMILY} any-version main" \
                 > /etc/apt/sources.list.d/caddy-stable.list
             ;;
@@ -44,7 +44,7 @@ install_php_repo() {
         ubuntu|debian)
             install -d -m 0755 /usr/share/keyrings
             curl -fsSL "${SURY_GPG_URL}" \
-                | gpg --dearmor -o /usr/share/keyrings/php-sury-archive-keyring.gpg
+                | gpg --batch --yes --dearmor -o /usr/share/keyrings/php-sury-archive-keyring.gpg
             echo "deb [signed-by=/usr/share/keyrings/php-sury-archive-keyring.gpg] https://packages.sury.org/php/ ${OS_CODENAME} main" \
                 > /etc/apt/sources.list.d/php-sury.list
             ;;
