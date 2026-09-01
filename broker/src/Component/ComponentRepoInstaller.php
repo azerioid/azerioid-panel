@@ -41,7 +41,7 @@ final class ComponentRepoInstaller
             }
             $log->info('Adding Sury PHP repository.');
             $this->runtime->exec(
-                ['/bin/sh', '-c', 'curl -fsSL https://packages.sury.org/php/apt.gpg | gpg --dearmor -o /usr/share/keyrings/php-sury-archive-keyring.gpg'],
+                ['/bin/sh', '-c', 'curl -fsSL https://packages.sury.org/php/apt.gpg | gpg --batch --yes --dearmor -o /usr/share/keyrings/php-sury-archive-keyring.gpg'],
                 null,
                 120
             );
@@ -80,7 +80,7 @@ final class ComponentRepoInstaller
             $log->info("Adding MongoDB {$version} apt repository.");
             $keyring = "/usr/share/keyrings/mongodb-server-{$version}.gpg";
             $this->runtime->exec(
-                ['/bin/sh', '-c', "curl -fsSL https://www.mongodb.org/static/pgp/server-{$version}.asc | gpg --dearmor -o {$keyring}"],
+                ['/bin/sh', '-c', "curl -fsSL https://www.mongodb.org/static/pgp/server-{$version}.asc | gpg --batch --yes --dearmor -o {$keyring}"],
                 null,
                 120
             );
