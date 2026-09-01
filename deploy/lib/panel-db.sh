@@ -27,7 +27,7 @@ configure_panel_db() {
     env_set "${PREFIX}/web/.env" APP_DEBUG false
     env_set "${PREFIX}/web/.env" APP_URL "http://127.0.0.1:${PANEL_PORT}"
     env_set "${PREFIX}/web/.env" AZERIOID_WWW_ROOT "${WWW_ROOT:-/data/www}"
-    env_set "${PREFIX}/web/.env" SESSION_SECURE_COOKIE false
+    env_set "${PREFIX}/web/.env" SESSION_SECURE_COOKIE "$([[ "${ACCESS:-tunnel}" == public ]] && echo true || echo false)"
     env_set "${PREFIX}/web/.env" PANEL_REQUIRE_TOTP "${REQUIRE_TOTP:-false}"
     env_set "${PREFIX}/web/.env" QUEUE_CONNECTION database
     chown "${WEB_USER}:${WEB_USER}" "${PREFIX}/web/.env"
