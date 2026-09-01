@@ -51,6 +51,7 @@ configure_panel_caddy() {
     touch /var/log/caddy/access_azerioid-panel.log
     chown "${WEB_USER}:${WEB_USER}" /var/log/caddy/access_azerioid-panel.log
     chmod 0640 /var/log/caddy/access_azerioid-panel.log
+    chmod 0755 /var/log/caddy
 
     install -d -m 0755 "${CADDY_CONFD}"
     local snippet="${CADDY_CONFD}/azerioid-panel.conf"
