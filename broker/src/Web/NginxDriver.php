@@ -1,0 +1,436 @@
+<?php
+declare(strict_types=1);
+
+namespace AzerioidPanel\Broker\Web;
+
+use AzerioidPanel\Broker\BrokerException;
+use AzerioidPanel\Broker\Config;
+use AzerioidPanel\Broker\Runtime;
+
+final class NginxDriver implements WebServerDriver
+{
+    public const SITES_AVAILABLE = '/etc/nginx/sites-available';
+    public const SITES_ENABLED = '/etc/nginx/sites-enabled';
+    public const CONF_D = '/etc/nginx/conf.d';
+
+    public function __construct(private readonly Config $config)
+    {
+    }
+
+    public function stackName(): string
+    {
+        return 'nginx';
+    }
+
+    public function webServiceName(): string
+    {
+        return 'nginx';
+    }
+
+    public function listVhosts(Runtime $runtime, Config $config): array
+    {
+        $sites = [];
+        $seenDomain = [];
+        foreach ($this->listVhostFiles($runtime, $config) as $entry) {
+            try {
+                $contents = $runtime->readFile($entry['path']);
+            } catch (\Throwable) {
+                continue;
+            }
+            $parsed = NginxParser::parseFile($entry['path'], $contents, $config->readonlyVhosts, $entry['enabled']);
+            $key = strtolower((string) $parsed['domain']);
+            if (isset($seenDomain[$key])) {
+                continue;
+            }
+            $seenDomain[$key] = true;
+            $sites[] = $parsed;
+        }
+        usort($sites, static fn ($a, $b) => strcmp((string) $a['domain'], (string) $b['domain']));
+
+        return $sites;
+    }
+
+    public function addVhost(Runtime $runtime, Config $config, array $spec): array
+    {
+        $domain = $spec['domain'];
+        $root = $spec['root'];
+        $type = $spec['type'];
+        $phpVersion = $spec['php_version'] ?? null;
+        $upstream = $spec['upstream'] ?? null;
+
+        $confPath = $this->siteAvailablePath($config, $domain);
+        if ($runtime->fileExists($confPath)) {
+            throw new BrokerException("A vhost for {$domain} already exists.", 3);
+        }
+        foreach ($this->listVhosts($runtime, $config) as $parsed) {
+            if (($parsed['domain'] ?? '') === $domain || in_array($domain, $parsed['domains'] ?? [], true)) {
+                throw new BrokerException(
+                    !empty($parsed['readonly'])
+                        ? "{$domain} is managed externally and can't be edited."
+                        : "A vhost for {$domain} already exists.",
+                    3
+                );
+            }
+        }
+
+        $contents = $this->render($runtime, $config, $domain, $root, $type, $phpVersion, $upstream);
+        if (!$runtime->isDir($root)) {
+            $runtime->mkdir($root, 0755);
+            $runtime->chown($root, $config->phpUser, $config->phpGroup);
+        }
+        $this->ensureLogDir($runtime, $config);
+
+        $dir = dirname($confPath);
+        if (!$runtime->isDir($dir)) {
+            $runtime->mkdir($dir, 0755);
+        }
+        $tmp = $confPath . '.lacmp-tmp';
+        $runtime->writeFile($tmp, $contents, 0644);
+        try {
+            $runtime->rename($tmp, $confPath);
+        } catch (BrokerException $e) {
+            $runtime->deleteFile($tmp);
+            throw $e;
+        }
+
+        $enabled = false;
+        try {
+            $this->enableSite($runtime, $config, $domain, $confPath);
+            $enabled = true;
+            $this->validate($runtime);
+            $applied = $this->reload($runtime, $config, 'auto');
+        } catch (BrokerException $e) {
+            if ($enabled) {
+                $this->disableSite($runtime, $config, $domain);
+            }
+            $runtime->deleteFile($confPath);
+            try {
+                $this->reload($runtime, $config, 'auto');
+            } catch (BrokerException) {
+            }
+            throw new BrokerException(
+                'Nginx rejected the config. The new vhost was rolled back. Existing sites were left serving. ' . $e->getMessage(),
+                1
+            );
+        }
+
+        return [
+            'domain' => $domain,
+            'root' => $root,
+            'type' => $type,
+            'php_version' => $phpVersion,
+            'upstream' => $upstream,
+            'source' => $confPath,
+            'apply' => $applied,
+        ];
+    }
+
+    public function removeVhost(Runtime $runtime, Config $config, string $domain): array
+    {
+        $confPath = $this->existingPath($runtime, $config, $domain);
+        if ($confPath === null) {
+            throw new BrokerException('Vhost config does not exist.', 3);
+        }
+        $contents = $runtime->readFile($confPath);
+        $parsed = NginxParser::parseFile($confPath, $contents, $config->readonlyVhosts);
+        if ($parsed['readonly']) {
+            throw new BrokerException('This vhost is managed externally and cannot be deleted by the panel.', 3);
+        }
+
+        $this->disableSite($runtime, $config, $domain);
+        $available = $this->siteAvailablePath($config, $domain);
+        $enabled = rtrim($config->vhostDir, '/') . '/' . $domain . '.conf';
+        foreach (array_unique([$confPath, $available, $enabled]) as $path) {
+            if ($runtime->fileExists($path)) {
+                $runtime->deleteFile($path);
+            }
+        }
+
+        try {
+            $this->validate($runtime);
+            $applied = $this->reload($runtime, $config, 'auto');
+        } catch (BrokerException $e) {
+            $runtime->writeFile($confPath, $contents, 0644);
+            $this->enableSite($runtime, $config, $domain, $confPath);
+            try {
+                $this->reload($runtime, $config, 'auto');
+            } catch (BrokerException) {
+            }
+            throw new BrokerException(
+                'Nginx would fail without this vhost; the file was restored. ' . $e->getMessage(),
+                1
+            );
+        }
+
+        return [
+            'domain' => $domain,
+            'deleted' => $confPath,
+            'web_root_preserved' => $parsed['root'],
+            'apply' => $applied,
+        ];
+    }
+
+    public function reload(Runtime $runtime, Config $config, string $mode = 'auto', array $expectPorts = []): array
+    {
+        $this->validate($runtime);
+        $unit = 'nginx';
+        fwrite(STDERR, "==> Applying via systemctl reload {$unit}\n");
+        $result = $runtime->exec(['/usr/bin/systemctl', 'reload', $unit], null, 60);
+        if (!$result->ok()) {
+            if ($mode === 'restart' || $mode === 'auto') {
+                fwrite(STDERR, "==> Applying via systemctl restart {$unit}\n");
+                $result = $runtime->exec(['/usr/bin/systemctl', 'restart', $unit], null, 60);
+                if ($result->ok()) {
+                    $this->assertActive($runtime, $unit);
+
+                    return ['path' => 'restart', 'address' => '', 'admin_spec' => 'n/a', 'admin_enabled' => false];
+                }
+            }
+            $detail = trim($result->stderr . "\n" . $result->stdout);
+            throw new BrokerException(
+                "systemctl reload {$unit} failed" . ($detail !== '' ? ': ' . $detail : '.'),
+                1
+            );
+        }
+        $this->assertActive($runtime, $unit);
+        fwrite(STDERR, "==> Nginx apply path: systemctl (unit {$unit})\n");
+
+        return ['path' => 'systemctl', 'address' => '', 'admin_spec' => 'n/a', 'admin_enabled' => false];
+    }
+
+    public function backupPaths(Config $config): array
+    {
+        $paths = [$config->vhostDir];
+        if ($config->vhostAvailableDir !== '' && $config->vhostAvailableDir !== $config->vhostDir) {
+            $paths[] = $config->vhostAvailableDir;
+        }
+
+        return $paths;
+    }
+
+    public function version(Runtime $runtime, Config $config): array
+    {
+        $r = $runtime->exec(['/usr/sbin/nginx', '-v']);
+        $raw = trim($r->stderr !== '' ? $r->stderr : $r->stdout);
+        $version = $raw;
+        if (preg_match('/nginx\/([0-9.]+)/', $raw, $m)) {
+            $version = $m[1];
+        }
+
+        return [
+            'version' => $version,
+            'raw' => explode("\n", $raw)[0] ?? $raw,
+            'service' => 'nginx',
+            'label' => 'Nginx',
+            'stack' => 'nginx',
+        ];
+    }
+
+    public function mainConfigPath(Config $config): string
+    {
+        return '/etc/nginx/nginx.conf';
+    }
+
+    private function validate(Runtime $runtime): void
+    {
+        $result = $runtime->exec(['/usr/sbin/nginx', '-t'], null, 20);
+        if (!$result->ok()) {
+            $detail = trim($result->stderr . "\n" . $result->stdout);
+            throw new BrokerException(
+                'Nginx rejected the config: ' . ($detail !== '' ? $detail : 'nginx -t failed'),
+                1
+            );
+        }
+    }
+
+    private function siteAvailablePath(Config $config, string $domain): string
+    {
+        if ($config->vhostAvailableDir !== '') {
+            return rtrim($config->vhostAvailableDir, '/') . '/' . $domain . '.conf';
+        }
+
+        return rtrim($config->vhostDir, '/') . '/' . $domain . '.conf';
+    }
+
+    private function existingPath(Runtime $runtime, Config $config, string $domain): ?string
+    {
+        foreach ($this->listVhostFiles($runtime, $config) as $entry) {
+            if (basename($entry['path'], '.conf') === $domain) {
+                return $entry['path'];
+            }
+            try {
+                $parsed = NginxParser::parseFile(
+                    $entry['path'],
+                    $runtime->readFile($entry['path']),
+                    $config->readonlyVhosts,
+                    $entry['enabled']
+                );
+            } catch (\Throwable) {
+                continue;
+            }
+            if (($parsed['domain'] ?? '') === $domain || in_array($domain, $parsed['domains'] ?? [], true)) {
+                return $entry['path'];
+            }
+        }
+        $candidate = $this->siteAvailablePath($config, $domain);
+
+        return $runtime->fileExists($candidate) ? $candidate : null;
+    }
+
+    /**
+     * @return list<array{path:string,enabled:bool}>
+     */
+    private function listVhostFiles(Runtime $runtime, Config $config): array
+    {
+        $enabledDir = rtrim($config->vhostDir, '/');
+        $availableDir = rtrim((string) $config->vhostAvailableDir, '/');
+        $split = $availableDir !== '' && $availableDir !== $enabledDir;
+
+        $out = [];
+        $seenCanon = [];
+        $seenBase = [];
+
+        $push = static function (string $path, bool $enabled) use ($runtime, &$out, &$seenCanon, &$seenBase): void {
+            $canon = $runtime->realPath($path);
+            if ($canon === '') {
+                $canon = $path;
+            }
+            if (isset($seenCanon[$canon])) {
+                return;
+            }
+            $base = strtolower(basename($path));
+            if (isset($seenBase[$base])) {
+                return;
+            }
+            $seenCanon[$canon] = true;
+            $seenBase[$base] = true;
+            $out[] = ['path' => $path, 'enabled' => $enabled];
+        };
+
+        foreach ($runtime->glob($enabledDir . '/*.conf') as $file) {
+            if (str_contains(basename($file), 'azerioid-panel')) {
+                continue;
+            }
+            $read = $file;
+            if ($split) {
+                $avail = $availableDir . '/' . basename($file);
+                if ($runtime->fileExists($avail)) {
+                    $read = $avail;
+                }
+            }
+            $push($read, true);
+        }
+        if ($split) {
+            foreach ($runtime->glob($availableDir . '/*.conf') as $file) {
+                $push($file, false);
+            }
+        }
+
+        return $out;
+    }
+
+    private function enableSite(Runtime $runtime, Config $config, string $domain, string $confPath): void
+    {
+        $enabledDir = rtrim($config->vhostDir, '/');
+        $availableDir = rtrim((string) $config->vhostAvailableDir, '/');
+        if ($availableDir !== '' && $availableDir !== $enabledDir) {
+            $link = $enabledDir . '/' . $domain . '.conf';
+            if (!$runtime->fileExists($link) && $runtime->fileExists('/usr/bin/ln')) {
+                $runtime->exec(['/usr/bin/ln', '-sf', $confPath, $link], null, 10);
+            }
+
+            return;
+        }
+        if ($confPath !== rtrim($config->vhostDir, '/') . '/' . $domain . '.conf') {
+            $target = rtrim($config->vhostDir, '/') . '/' . $domain . '.conf';
+            if (!$runtime->fileExists($target)) {
+                $runtime->writeFile($target, $runtime->readFile($confPath), 0644);
+            }
+        }
+    }
+
+    private function disableSite(Runtime $runtime, Config $config, string $domain): void
+    {
+        $enabled = rtrim($config->vhostDir, '/') . '/' . $domain . '.conf';
+        if ($runtime->fileExists($enabled)) {
+            $runtime->deleteFile($enabled);
+        }
+    }
+
+    private function assertActive(Runtime $runtime, string $unit): void
+    {
+        $active = $runtime->exec(['/usr/bin/systemctl', 'is-active', $unit]);
+        if (trim($active->stdout) !== 'active' && !$active->ok()) {
+            throw new BrokerException("Nginx is not active after apply (systemctl is-active {$unit} failed).", 1);
+        }
+    }
+
+    private function ensureLogDir(Runtime $runtime, Config $config): void
+    {
+        $dir = $config->webLogDir;
+        if (!$runtime->isDir($dir)) {
+            $runtime->mkdir($dir, 0755);
+            $runtime->chown($dir, $config->webUser, $config->webUser);
+        }
+    }
+
+    private function render(
+        Runtime $runtime,
+        Config $config,
+        string $domain,
+        string $root,
+        string $type,
+        ?string $phpVersion,
+        ?string $upstream,
+    ): string {
+        $logs = rtrim($config->webLogDir, '/');
+        $location = '';
+        if ($type === 'php' && $phpVersion !== null) {
+            $sock = $config->phpFpmUnixPath($phpVersion, $runtime);
+            $location = <<<PHP
+    location / {
+        try_files \$uri \$uri/ /index.php?\$query_string;
+    }
+
+    location ~ \.php$ {
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+        fastcgi_pass unix:{$sock};
+    }
+
+PHP;
+        } elseif ($type === 'proxy' && $upstream !== null) {
+            $location = <<<PROXY
+    location / {
+        proxy_pass http://{$upstream};
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+PROXY;
+        } else {
+            $location = <<<STATIC
+    location / {
+        try_files \$uri \$uri/ =404;
+    }
+
+STATIC;
+        }
+
+        return <<<EOF
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {$domain};
+    root {$root};
+    index index.php index.html;
+
+{$location}    access_log {$logs}/{$domain}-access.log;
+    error_log {$logs}/{$domain}-error.log;
+}
+
+EOF;
+    }
+}

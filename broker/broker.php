@@ -1,26 +1,25 @@
 #!/usr/bin/env php
 <?php
 /**
- * LACMP Panel privileged broker.
+ * Stack Manager privileged broker.
  *
  * Enumerated actions only. Arguments are re-validated here. Commands are
  * executed as argv arrays via proc_open — never interpolated into a shell.
  *
  * Usage: broker <action> [arg ...]
  * Secrets (passwords) MUST be passed as JSON on stdin, never argv.
- *
- * Production entry is the bash wrapper `broker` which execs this file with
- * open_basedir / disable_functions cleared (LACMP hardens CLI php.ini).
  */
 declare(strict_types=1);
 
 require __DIR__ . '/src/bootstrap.php';
 
-use LacmpPanel\Broker\Config;
-use LacmpPanel\Broker\Kernel;
-use LacmpPanel\Broker\PosixRuntime;
+use AzerioidPanel\Broker\Config;
+use AzerioidPanel\Broker\Kernel;
+use AzerioidPanel\Broker\PosixRuntime;
 
-$configPath = getenv('LACMP_PANEL_CONFIG') ?: '/etc/lacmp-panel/broker.json';
+$configPath = getenv('AZERIOID_PANEL_CONFIG')
+    ?: getenv('LACMP_PANEL_CONFIG')
+    ?: '/etc/azerioid-panel/broker.json';
 $runtime = new PosixRuntime();
 $config = Config::load($configPath, $runtime);
 $kernel = new Kernel($config, $runtime);

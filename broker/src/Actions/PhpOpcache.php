@@ -1,12 +1,12 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker\Actions;
+namespace AzerioidPanel\Broker\Actions;
 
-use LacmpPanel\Broker\BrokerException;
-use LacmpPanel\Broker\Config;
-use LacmpPanel\Broker\Runtime;
-use LacmpPanel\Broker\Validator;
+use AzerioidPanel\Broker\BrokerException;
+use AzerioidPanel\Broker\Config;
+use AzerioidPanel\Broker\Runtime;
+use AzerioidPanel\Broker\Validator;
 
 final class PhpOpcache
 {

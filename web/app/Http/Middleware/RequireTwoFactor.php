@@ -15,7 +15,7 @@ final class RequireTwoFactor
             return $next($request);
         }
 
-        if (! config('lacmp.require_totp')) {
+        if (! config('azerioid.require_totp')) {
             return $next($request);
         }
 

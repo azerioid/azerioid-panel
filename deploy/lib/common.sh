@@ -117,8 +117,8 @@ run_as_web() {
 write_bootstrap_json() {
     local ts
     ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    install -d -m 0750 -o root -g root /etc/lacmp-panel
-    python3 - /etc/lacmp-panel/bootstrap.json "${ts}" <<'PY'
+    install -d -m 0750 -o root -g root /etc/azerioid-panel
+    python3 - /etc/azerioid-panel/bootstrap.json "${ts}" <<'PY'
 import json, pathlib, sys
 path = pathlib.Path(sys.argv[1])
 ts = sys.argv[2]
@@ -143,15 +143,15 @@ PY
 }
 
 write_runtime_json() {
-    install -d -m 0750 -o root -g root /etc/lacmp-panel
-    cat > /etc/lacmp-panel/runtime.json <<EOF
+    install -d -m 0750 -o root -g root /etc/azerioid-panel
+    cat > /etc/azerioid-panel/runtime.json <<EOF
 {
     "panel_php_version": "${PANEL_PHP_VERSION}",
-    "fpm_socket": "/run/php/lacmp-panel.sock",
-    "fpm_pool": "lacmp-panel",
-    "queue_unit": "lacmp-panel-queue.service"
+    "fpm_socket": "/run/php/azerioid-panel.sock",
+    "fpm_pool": "azerioid-panel",
+    "queue_unit": "azerioid-panel-queue.service"
 }
 EOF
-    chmod 0640 /etc/lacmp-panel/runtime.json
-    chown root:root /etc/lacmp-panel/runtime.json
+    chmod 0640 /etc/azerioid-panel/runtime.json
+    chown root:root /etc/azerioid-panel/runtime.json
 }

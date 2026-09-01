@@ -4,7 +4,7 @@
     @endif
     <h2 class="mb-1 text-base font-medium text-zinc-100">Sign in</h2>
     <p class="mb-6 text-sm text-zinc-500">
-        @if (config('lacmp.require_totp'))
+        @if (config('azerioid.require_totp'))
             Password plus TOTP. No shared logins.
         @else
             Password only. No shared logins.

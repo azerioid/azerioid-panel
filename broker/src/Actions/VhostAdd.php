@@ -1,13 +1,13 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker\Actions;
+namespace AzerioidPanel\Broker\Actions;
 
-use LacmpPanel\Broker\BrokerException;
-use LacmpPanel\Broker\Config;
-use LacmpPanel\Broker\Runtime;
-use LacmpPanel\Broker\Validator;
-use LacmpPanel\Broker\Web\WebServers;
+use AzerioidPanel\Broker\BrokerException;
+use AzerioidPanel\Broker\Config;
+use AzerioidPanel\Broker\Runtime;
+use AzerioidPanel\Broker\Validator;
+use AzerioidPanel\Broker\Web\WebServers;
 
 final class VhostAdd
 {
@@ -27,7 +27,7 @@ final class VhostAdd
         }
 
         $blocked = array_map('strtolower', $config->readonlyVhosts);
-        if (in_array($domain, $blocked, true) || $domain === 'default' || $domain === 'lacmp-panel') {
+        if (in_array($domain, $blocked, true) || $domain === 'default' || $domain === 'azerioid-panel') {
             throw new BrokerException("{$domain} is managed externally and can't be edited.", 3);
         }
 

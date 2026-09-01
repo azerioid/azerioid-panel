@@ -1,14 +1,14 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker\Tests;
+namespace AzerioidPanel\Broker\Tests;
 
-use LacmpPanel\Broker\ArchiveCrypto;
-use LacmpPanel\Broker\Config;
-use LacmpPanel\Broker\FakeRuntime;
-use LacmpPanel\Broker\Kernel;
-use LacmpPanel\Broker\SpacesClient;
-use LacmpPanel\Broker\Validator;
+use AzerioidPanel\Broker\ArchiveCrypto;
+use AzerioidPanel\Broker\Config;
+use AzerioidPanel\Broker\FakeRuntime;
+use AzerioidPanel\Broker\Kernel;
+use AzerioidPanel\Broker\SpacesClient;
+use AzerioidPanel\Broker\Validator;
 use PHPUnit\Framework\TestCase;
 
 final class KernelPhase2Test extends TestCase
@@ -50,7 +50,7 @@ final class KernelPhase2Test extends TestCase
             'spaces' => [
                 'endpoint' => 'https://fra1.digitaloceanspaces.com',
                 'region' => 'fra1',
-                'bucket' => 'lacmp-backups',
+                'bucket' => 'azerioid-backups',
                 'access_key' => 'DO00TESTKEY',
                 'secret' => 'supersecretkeyvalue',
             ],
@@ -79,12 +79,12 @@ final class KernelPhase2Test extends TestCase
     public function test_scheduler_install_writes_cron_d(): void
     {
         $rt = new FakeRuntime();
-        $rt->files['/usr/local/lib/lacmp-panel/web/artisan'] = "#!/usr/bin/env php\n";
+        $rt->files['/usr/local/lib/azerioid-panel/web/artisan'] = "#!/usr/bin/env php\n";
         [$code, $json] = $this->capture($this->kernel($rt), ['broker', 'scheduler.install']);
         $this->assertSame(0, $code);
-        $body = $rt->files['/etc/cron.d/lacmp-panel'] ?? '';
-        $this->assertStringContainsString('caddy /usr/bin/php /usr/local/lib/lacmp-panel/web/artisan schedule:run', $body);
-        $this->assertSame('/etc/cron.d/lacmp-panel', $json['data']['path']);
+        $body = $rt->files['/etc/cron.d/azerioid-panel'] ?? '';
+        $this->assertStringContainsString('caddy /usr/bin/php /usr/local/lib/azerioid-panel/web/artisan schedule:run', $body);
+        $this->assertSame('/etc/cron.d/azerioid-panel', $json['data']['path']);
     }
 
     public function test_updates_list_splits_security(): void
@@ -144,7 +144,7 @@ final class KernelPhase2Test extends TestCase
         $cfg->mysqlPassword = 'db-secret-password-xx';
         $rt->script([
             '/usr/bin/mysqldump',
-            '--defaults-extra-file=/var/lib/lacmp-panel/staging/mysqldump.cnf',
+            '--defaults-extra-file=/var/lib/azerioid-panel/staging/mysqldump.cnf',
             '--protocol=socket',
             '--socket=/run/mysqld/mysqld.sock',
             '--single-transaction',
@@ -157,14 +157,14 @@ final class KernelPhase2Test extends TestCase
         [$code, $json] = $this->capture($this->kernel($rt, $cfg), ['broker', 'backup.db', 'all'], $this->stdin());
         $this->assertSame(0, $code);
         $this->assertTrue($json['ok']);
-        $this->assertStringStartsWith('lacmp/db/all/', $json['data']['key']);
+        $this->assertStringStartsWith('azerioid/db/all/', $json['data']['key']);
 
         $argv = json_encode($rt->execLog, JSON_THROW_ON_ERROR);
         $this->assertStringNotContainsString('db-secret-password-xx', $argv);
         $this->assertStringNotContainsString('abcdefghijklmnopqrst', $argv);
         $this->assertStringNotContainsString('supersecretkeyvalue', $argv);
 
-        $audit = $rt->files['/var/log/lacmp-panel/broker-audit.log'] ?? '';
+        $audit = $rt->files['/var/log/azerioid-panel/broker-audit.log'] ?? '';
         $this->assertStringNotContainsString('abcdefghijklmnopqrst', $audit);
         $this->assertStringNotContainsString('supersecretkeyvalue', $audit);
         $this->assertStringContainsString('[redacted]', $audit);
@@ -173,12 +173,12 @@ final class KernelPhase2Test extends TestCase
     public function test_restore_db_into_new_name(): void
     {
         $plain = "CREATE TABLE t (id int);\n";
-        $this->spaces->put('/lacmp-backups/lacmp/db/all/fixture.bin', ArchiveCrypto::encrypt($plain, 'abcdefghijklmnopqrst'));
+        $this->spaces->put('/azerioid-backups/azerioid/db/all/fixture.bin', ArchiveCrypto::encrypt($plain, 'abcdefghijklmnopqrst'));
         $rt = new FakeRuntime();
         $rt->dbRows = [];
         [$code, $json] = $this->capture(
             $this->kernel($rt),
-            ['broker', 'backup.restore.db', 'lacmp/db/all/fixture.bin'],
+            ['broker', 'backup.restore.db', 'azerioid/db/all/fixture.bin'],
             $this->stdin() + ['target' => 'projob_restore_1']
         );
         $this->assertSame(0, $code);
@@ -190,12 +190,12 @@ final class KernelPhase2Test extends TestCase
 
     public function test_restore_db_refuses_existing_without_overwrite(): void
     {
-        $this->spaces->put('/lacmp-backups/lacmp/db/all/fixture.bin', ArchiveCrypto::encrypt('-- dump --', 'abcdefghijklmnopqrst'));
+        $this->spaces->put('/azerioid-backups/azerioid/db/all/fixture.bin', ArchiveCrypto::encrypt('-- dump --', 'abcdefghijklmnopqrst'));
         $rt = new FakeRuntime();
         $rt->dbRows = [['Database' => 'projob']];
         [$code, $json] = $this->capture(
             $this->kernel($rt),
-            ['broker', 'backup.restore.db', 'lacmp/db/all/fixture.bin'],
+            ['broker', 'backup.restore.db', 'azerioid/db/all/fixture.bin'],
             $this->stdin() + ['target' => 'projob']
         );
         $this->assertNotSame(0, $code);
@@ -204,13 +204,13 @@ final class KernelPhase2Test extends TestCase
 
     public function test_restore_files_refuses_projob_without_force(): void
     {
-        $this->spaces->put('/lacmp-backups/lacmp/files/projob.az/fixture.bin', ArchiveCrypto::encrypt('tgz', 'abcdefghijklmnopqrst'));
+        $this->spaces->put('/azerioid-backups/azerioid/files/projob.az/fixture.bin', ArchiveCrypto::encrypt('tgz', 'abcdefghijklmnopqrst'));
         $rt = new FakeRuntime();
         $cfg = new Config();
         $cfg->readonlyVhosts = ['projob.az', 'www.projob.az'];
         [$code, $json] = $this->capture(
             $this->kernel($rt, $cfg),
-            ['broker', 'backup.restore.files', 'lacmp/files/projob.az/fixture.bin'],
+            ['broker', 'backup.restore.files', 'azerioid/files/projob.az/fixture.bin'],
             $this->stdin() + ['site' => 'projob.az', 'apply' => true]
         );
         $this->assertNotSame(0, $code);
@@ -221,15 +221,15 @@ final class KernelPhase2Test extends TestCase
 
     public function test_restore_files_projob_requires_typed_force(): void
     {
-        $this->spaces->put('/lacmp-backups/lacmp/files/projob.az/fixture.bin', ArchiveCrypto::encrypt('tgz', 'abcdefghijklmnopqrst'));
+        $this->spaces->put('/azerioid-backups/azerioid/files/projob.az/fixture.bin', ArchiveCrypto::encrypt('tgz', 'abcdefghijklmnopqrst'));
         $rt = new FakeRuntime();
         $rt->dirs['/data/www/projob.az'] = true;
-        $rt->dirs['/var/lib/lacmp-panel/staging/restore-projob.az/projob.az'] = true;
+        $rt->dirs['/var/lib/azerioid-panel/staging/restore-projob.az/projob.az'] = true;
         $cfg = new Config();
         $cfg->readonlyVhosts = ['projob.az', 'www.projob.az'];
         [$code] = $this->capture(
             $this->kernel($rt, $cfg),
-            ['broker', 'backup.restore.files', 'lacmp/files/projob.az/fixture.bin'],
+            ['broker', 'backup.restore.files', 'azerioid/files/projob.az/fixture.bin'],
             $this->stdin() + ['site' => 'projob.az', 'apply' => true, 'force' => true, 'confirm' => 'PROJOB.AZ']
         );
         $this->assertSame(0, $code);

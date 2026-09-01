@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker\Actions;
+namespace AzerioidPanel\Broker\Actions;
 
-use LacmpPanel\Broker\Config;
-use LacmpPanel\Broker\ProcMetrics;
-use LacmpPanel\Broker\Runtime;
+use AzerioidPanel\Broker\Config;
+use AzerioidPanel\Broker\ProcMetrics;
+use AzerioidPanel\Broker\Runtime;
 
 final class MetricsSystem
 {

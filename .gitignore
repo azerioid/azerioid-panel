@@ -1,6 +1,7 @@
 /.claude-flow/
 /web/vendor/
 /web/node_modules/
+/web/docs/
 /web/.env
 /web/.phpunit.result.cache
 /web/storage/logs/*

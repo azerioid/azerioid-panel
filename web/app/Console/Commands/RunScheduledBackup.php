@@ -9,7 +9,7 @@ use Illuminate\Console\Command;
 
 class RunScheduledBackup extends Command
 {
-    protected $signature = 'lacmp:backup-scheduled';
+    protected $signature = 'azerioid:backup-scheduled';
 
     protected $description = 'Run the configured backup job if due';
 

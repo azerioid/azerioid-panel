@@ -1,0 +1,15 @@
+[Unit]
+Description=Stack Manager Laravel queue worker
+After=network.target
+
+[Service]
+Type=simple
+User=@WEB_USER@
+Group=@WEB_USER@
+WorkingDirectory=@PREFIX@/web
+ExecStart=@PHP_BIN@ @PREFIX@/web/artisan queue:work --sleep=3 --tries=3 --max-time=3600
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -5,6 +5,7 @@
   "description": "Distributed memory caching system",
   "managed": true,
   "system": false,
+  "installable": true,
   "min_os": { "ubuntu": "24.04", "debian": "12", "el": "9" },
   "ports": [
     { "port": 11211, "bind": "127.0.0.1", "owner": "memcached", "protocol": "tcp" }

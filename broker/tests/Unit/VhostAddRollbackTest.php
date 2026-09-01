@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker\Tests;
+namespace AzerioidPanel\Broker\Tests;
 
-use LacmpPanel\Broker\Config;
-use LacmpPanel\Broker\FakeRuntime;
-use LacmpPanel\Broker\Kernel;
+use AzerioidPanel\Broker\Config;
+use AzerioidPanel\Broker\FakeRuntime;
+use AzerioidPanel\Broker\Kernel;
 use PHPUnit\Framework\TestCase;
 
 final class VhostAddRollbackTest extends TestCase
@@ -130,7 +130,7 @@ final class VhostAddRollbackTest extends TestCase
     public function test_prefers_lacmp_default_pool_socket_not_panel_pool(): void
     {
         $this->rt->files['/run/php/php-fpm.sock'] = '';
-        $this->rt->files['/run/php/lacmp-panel.sock'] = '';
+        $this->rt->files['/run/php/azerioid-panel.sock'] = '';
         $this->rt->script(['/usr/bin/caddy', 'validate', '--config', '/etc/caddy/Caddyfile'], 0, 'Valid configuration');
 
         ob_start();
@@ -139,7 +139,7 @@ final class VhostAddRollbackTest extends TestCase
         $this->assertSame(0, $code);
         $conf = $this->rt->files['/etc/caddy/conf.d/pool.example.com.conf'];
         $this->assertStringContainsString('php_fastcgi unix//run/php/php-fpm.sock', $conf);
-        $this->assertStringNotContainsString('lacmp-panel.sock', $conf);
+        $this->assertStringNotContainsString('azerioid-panel.sock', $conf);
     }
 
     public function test_refuses_readonly_domain_create(): void

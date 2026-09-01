@@ -1,18 +1,22 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker\Tests;
+namespace AzerioidPanel\Broker\Tests;
 
-use LacmpPanel\Broker\Config;
-use LacmpPanel\Broker\FakeRuntime;
-use LacmpPanel\Broker\Kernel;
+use AzerioidPanel\Broker\Config;
+use AzerioidPanel\Broker\FakeRuntime;
+use AzerioidPanel\Broker\Kernel;
 use PHPUnit\Framework\TestCase;
 
 final class KernelDispatchTest extends TestCase
 {
     private function kernel(FakeRuntime $rt): Kernel
     {
-        return new Kernel(new Config(), $rt);
+        $cfg = new Config();
+        $cfg->databaseEngine = 'mariadb';
+        $cfg->mysqlPassword = 'abcdefghijklmnopqrst';
+
+        return new Kernel($cfg, $rt);
     }
 
     private function capture(Kernel $kernel, array $argv, array $stdin = []): array
@@ -170,7 +174,7 @@ final class KernelDispatchTest extends TestCase
             ['broker', 'db.add', 'shopdb', 'shopuser'],
             ['password' => 'abcdefghijklmnopqrst']
         );
-        $audit = $rt->files['/var/log/lacmp-panel/broker-audit.log'] ?? '';
+        $audit = $rt->files['/var/log/azerioid-panel/broker-audit.log'] ?? '';
         $this->assertStringNotContainsString('abcdefghijklmnopqrst', $audit);
         $this->assertStringContainsString('[redacted]', $audit);
     }

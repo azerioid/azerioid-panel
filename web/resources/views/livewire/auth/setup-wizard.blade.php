@@ -3,7 +3,7 @@
         <h2 class="mb-1 text-base font-medium text-zinc-100">Create the admin account</h2>
         <p class="mb-6 text-sm text-zinc-500">
             This is the only login.
-            @if (config('lacmp.require_totp'))
+            @if (config('azerioid.require_totp'))
                 2FA enrollment is required after this step.
             @else
                 Password-only (TOTP is not required).

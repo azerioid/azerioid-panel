@@ -7,7 +7,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LIB="${ROOT}/deploy/lib"
 
 # Defaults
-PREFIX="${PREFIX:-/usr/local/lib/lacmp-panel}"
+PREFIX="${PREFIX:-/usr/local/lib/azerioid-panel}"
 WWW_ROOT="${WWW_ROOT:-/data/www}"
 PANEL_PHP_VERSION="${PANEL_PHP_VERSION:-8.4}"
 PANEL_PORT="${PANEL_PORT:-3169}"
@@ -29,7 +29,7 @@ Stack Manager bootstrap — installs Caddy, PHP 8.4 FPM, SQLite panel (no lcmp/l
 
   --non-interactive       no prompts
   --dry-run               print plan only
-  --prefix=<dir>          default /usr/local/lib/lacmp-panel
+  --prefix=<dir>          default /usr/local/lib/azerioid-panel
   --port=<n>              panel port (default 3169)
   --web-user=<user>       default: caddy or www-data
   --access=tunnel|public  default tunnel (127.0.0.1)
@@ -135,6 +135,6 @@ echo
 echo "Stack Manager installed."
 echo "  Panel:     http://127.0.0.1:${PANEL_PORT}"
 echo "  Broker:    ${PREFIX}/broker"
-echo "  Database:  /var/lib/lacmp-panel/panel.sqlite"
-echo "  Queue:     systemctl status lacmp-panel-queue"
+echo "  Database:  /var/lib/azerioid-panel/panel.sqlite"
+echo "  Queue:     systemctl status azerioid-panel-queue"
 echo "  SSH tunnel: ssh -L ${PANEL_PORT}:127.0.0.1:${PANEL_PORT} user@host"

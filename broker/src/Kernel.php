@@ -1,47 +1,56 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker;
+namespace AzerioidPanel\Broker;
 
-use LacmpPanel\Broker\Actions\AuthAudit;
-use LacmpPanel\Broker\Actions\CaddyApplyConfig;
-use LacmpPanel\Broker\Actions\BackupList;
-use LacmpPanel\Broker\Actions\BackupPrune;
-use LacmpPanel\Broker\Actions\BackupRestore;
-use LacmpPanel\Broker\Actions\BackupRun;
-use LacmpPanel\Broker\Actions\CronManage;
-use LacmpPanel\Broker\Actions\DbAdd;
-use LacmpPanel\Broker\Actions\DbDel;
-use LacmpPanel\Broker\Actions\DbList;
-use LacmpPanel\Broker\Actions\DbResetpw;
-use LacmpPanel\Broker\Actions\Fail2banInstall;
-use LacmpPanel\Broker\Actions\FirewallStatus;
-use LacmpPanel\Broker\Actions\FirewallUnban;
-use LacmpPanel\Broker\Actions\LogsSearch;
-use LacmpPanel\Broker\Actions\LogsTail;
-use LacmpPanel\Broker\Actions\MariadbBindFix;
-use LacmpPanel\Broker\Actions\MariadbBindRollback;
-use LacmpPanel\Broker\Actions\MariadbBindStatus;
-use LacmpPanel\Broker\Actions\MetricsSystem;
-use LacmpPanel\Broker\Actions\PanelRuntime;
-use LacmpPanel\Broker\Actions\PhpIniGet;
-use LacmpPanel\Broker\Actions\PhpIniSet;
-use LacmpPanel\Broker\Actions\PhpOpcache;
-use LacmpPanel\Broker\Actions\PhpVersions;
-use LacmpPanel\Broker\Actions\SchedulerInstall;
-use LacmpPanel\Broker\Actions\ServiceControl;
-use LacmpPanel\Broker\Actions\ServiceStatus;
-use LacmpPanel\Broker\Actions\SpacesTest;
-use LacmpPanel\Broker\Actions\StatusAll;
-use LacmpPanel\Broker\Actions\SystemReboot;
-use LacmpPanel\Broker\Actions\SystemRebootRequired;
-use LacmpPanel\Broker\Actions\TlsCerts;
-use LacmpPanel\Broker\Actions\UpdatesApply;
-use LacmpPanel\Broker\Actions\UpdatesList;
-use LacmpPanel\Broker\Actions\VersionAll;
-use LacmpPanel\Broker\Actions\VhostAdd;
-use LacmpPanel\Broker\Actions\VhostDel;
-use LacmpPanel\Broker\Actions\VhostList;
+use AzerioidPanel\Broker\Actions\AuthAudit;
+use AzerioidPanel\Broker\Actions\ComponentAdopt;
+use AzerioidPanel\Broker\Actions\ComponentInstall;
+use AzerioidPanel\Broker\Actions\ComponentList;
+use AzerioidPanel\Broker\Actions\ComponentOperationLog;
+use AzerioidPanel\Broker\Actions\ComponentPreflightAction;
+use AzerioidPanel\Broker\Actions\ComponentStatus;
+use AzerioidPanel\Broker\Actions\ComponentUninstall;
+use AzerioidPanel\Broker\Actions\CaddyApplyConfig;
+use AzerioidPanel\Broker\Actions\BackupList;
+use AzerioidPanel\Broker\Actions\BackupPrune;
+use AzerioidPanel\Broker\Actions\BackupRestore;
+use AzerioidPanel\Broker\Actions\BackupRun;
+use AzerioidPanel\Broker\Actions\CronManage;
+use AzerioidPanel\Broker\Actions\DbAdd;
+use AzerioidPanel\Broker\Actions\DbDel;
+use AzerioidPanel\Broker\Actions\DbDump;
+use AzerioidPanel\Broker\Actions\DbEngine;
+use AzerioidPanel\Broker\Actions\DbList;
+use AzerioidPanel\Broker\Actions\DbResetpw;
+use AzerioidPanel\Broker\Actions\Fail2banInstall;
+use AzerioidPanel\Broker\Actions\FirewallStatus;
+use AzerioidPanel\Broker\Actions\FirewallUnban;
+use AzerioidPanel\Broker\Actions\LogsSearch;
+use AzerioidPanel\Broker\Actions\LogsTail;
+use AzerioidPanel\Broker\Actions\MariadbBindFix;
+use AzerioidPanel\Broker\Actions\MariadbBindRollback;
+use AzerioidPanel\Broker\Actions\MariadbBindStatus;
+use AzerioidPanel\Broker\Actions\MetricsSystem;
+use AzerioidPanel\Broker\Actions\PanelRuntime;
+use AzerioidPanel\Broker\Actions\PhpIniGet;
+use AzerioidPanel\Broker\Actions\PhpIniSet;
+use AzerioidPanel\Broker\Actions\PhpOpcache;
+use AzerioidPanel\Broker\Actions\PhpVersions;
+use AzerioidPanel\Broker\Actions\SchedulerInstall;
+use AzerioidPanel\Broker\Actions\ServiceControl;
+use AzerioidPanel\Broker\Actions\ServiceStatus;
+use AzerioidPanel\Broker\Actions\SpacesTest;
+use AzerioidPanel\Broker\Actions\StatusAll;
+use AzerioidPanel\Broker\Actions\SystemReboot;
+use AzerioidPanel\Broker\Actions\SystemRebootRequired;
+use AzerioidPanel\Broker\Actions\TlsCerts;
+use AzerioidPanel\Broker\Actions\UpdatesApply;
+use AzerioidPanel\Broker\Actions\UpdatesList;
+use AzerioidPanel\Broker\Actions\VersionAll;
+use AzerioidPanel\Broker\Actions\VhostAdd;
+use AzerioidPanel\Broker\Actions\VhostDel;
+use AzerioidPanel\Broker\Actions\VhostList;
 
 final class Kernel
 {
@@ -49,6 +58,13 @@ final class Kernel
     public const ACTIONS = [
         'status.all' => StatusAll::class,
         'panel.runtime' => PanelRuntime::class,
+        'component.list' => ComponentList::class,
+        'component.status' => ComponentStatus::class,
+        'component.preflight' => ComponentPreflightAction::class,
+        'component.install' => ComponentInstall::class,
+        'component.adopt' => ComponentAdopt::class,
+        'component.uninstall' => ComponentUninstall::class,
+        'component.operation.log' => ComponentOperationLog::class,
         'version.all' => VersionAll::class,
         'metrics.system' => MetricsSystem::class,
         'service.status' => ServiceStatus::class,
@@ -64,6 +80,8 @@ final class Kernel
         'db.add' => DbAdd::class,
         'db.del' => DbDel::class,
         'db.resetpw' => DbResetpw::class,
+        'db.engine' => DbEngine::class,
+        'db.dump' => DbDump::class,
         'logs.tail' => LogsTail::class,
         'logs.search' => LogsSearch::class,
         'php.versions' => PhpVersions::class,

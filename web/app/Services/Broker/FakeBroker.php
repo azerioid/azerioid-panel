@@ -14,6 +14,10 @@ final class FakeBroker
     /** @var array<int, array<string, mixed>> */
     public array $databases;
 
+    public string $databaseEngine = 'mariadb';
+
+    public bool $postgresqlConfigured = false;
+
     public bool $refuseReadonlyDeletes = true;
 
     public bool $failNextValidate = false;
@@ -21,6 +25,9 @@ final class FakeBroker
     public bool $failNextDbAdd = false;
 
     public bool $php82Failed = true;
+
+    /** @var array<string, true> */
+    public array $fakeObservedComponents = [];
 
     public function __construct()
     {
@@ -32,6 +39,10 @@ final class FakeBroker
         $this->failNextValidate = false;
         $this->failNextDbAdd = false;
         $this->php82Failed = true;
+        $this->fakeInstalledComponents = [];
+        $this->fakeObservedComponents = [];
+        $this->databaseEngine = 'mariadb';
+        $this->postgresqlConfigured = false;
         $this->vhosts = [
             [
                 'domains' => ['projob.az'],
@@ -74,15 +85,22 @@ final class FakeBroker
                 'status.all' => $this->statusAll(),
                 'panel.runtime' => [
                     'php_version' => '8.4',
-                    'fpm_socket' => '/run/php/lacmp-panel.sock',
-                    'fpm_pool' => 'lacmp-panel',
+                    'fpm_socket' => '/run/php/azerioid-panel.sock',
+                    'fpm_pool' => 'azerioid-panel',
                     'fpm_service' => 'php8.4-fpm',
-                    'queue_unit' => 'lacmp-panel-queue.service',
+                    'queue_unit' => 'azerioid-panel-queue.service',
                     'queue_active' => true,
-                    'queue_status' => $this->svc('lacmp-panel-queue'),
+                    'queue_status' => $this->svc('azerioid-panel-queue'),
                     'system' => true,
                     'removable' => false,
                 ],
+                'component.list' => $this->componentList(),
+                'component.status' => $this->componentStatus((string) ($args[0] ?? '')),
+                'component.preflight' => $this->componentPreflight((string) ($args[0] ?? '')),
+                'component.install' => $this->componentInstall((string) ($args[0] ?? ''), $stdin),
+                'component.adopt' => $this->componentAdopt((string) ($args[0] ?? '')),
+                'component.uninstall' => $this->componentUninstall((string) ($args[0] ?? ''), $stdin),
+                'component.operation.log' => $this->componentOperationLog((string) ($args[0] ?? '')),
                 'version.all' => $this->versionAll(),
                 'metrics.system' => $this->metrics(),
                 'service.status' => [
@@ -94,7 +112,9 @@ final class FakeBroker
                 'vhost.list' => ['vhosts' => $this->vhosts],
                 'vhost.add' => $this->vhostAdd($args, $stdin),
                 'vhost.del' => $this->vhostDel($args),
-                'db.list' => ['databases' => $this->databases],
+                'db.list' => ['engine' => $this->databaseEngine, 'databases' => $this->databases],
+                'db.engine' => $this->dbEngine(),
+                'db.dump' => $this->dbDump($args),
                 'db.add' => $this->dbAdd($args, $stdin),
                 'db.del' => $this->dbDel($args),
                 'db.resetpw' => ['user' => $args[0] ?? '', 'reset' => true],
@@ -107,7 +127,7 @@ final class FakeBroker
                 'mariadb.bind.rollback' => ['config_path' => '/etc/mysql/mariadb.conf.d/50-server.cnf', 'restored_from' => (string) ($args[0] ?? ''), 'restarted' => true],
                 'system.reboot-required' => ['required' => true, 'packages' => ['linux-image-6.8']],
                 'system.reboot' => $this->requireConfirm($stdin, 'REBOOT', ['accepted' => true]),
-                'scheduler.install' => ['path' => '/etc/cron.d/lacmp-panel', 'artisan' => '/usr/local/lib/lacmp-panel/web/artisan', 'user' => 'caddy'],
+                'scheduler.install' => ['path' => '/etc/cron.d/azerioid-panel', 'artisan' => '/usr/local/lib/azerioid-panel/web/artisan', 'user' => 'caddy'],
                 'updates.list' => ['total' => 12, 'security' => 3, 'source' => 'apt-check', 'packages' => [
                     ['name' => 'openssl', 'security' => true, 'raw' => 'Inst openssl [3.0] (3.0.1 Ubuntu:24.04/noble-security)'],
                     ['name' => 'curl', 'security' => false, 'raw' => 'Inst curl [8.5] (8.5.1 Ubuntu:24.04/noble-updates)'],
@@ -118,14 +138,14 @@ final class FakeBroker
                     'domain' => 'projob.az', 'ok' => true, 'issuer' => 'C=US, O=Let\'s Encrypt', 'valid_from' => 'Aug  1 00:00:00 2026 GMT',
                     'valid_to' => 'Oct 30 00:00:00 2026 GMT', 'days_remaining' => 63, 'renewal' => 'ok',
                 ]]],
-                'backup.db', 'backup.files', 'backup.caddy' => ['key' => 'lacmp/db/all/20260828T000000Z.bin', 'size' => 1024, 'kind' => 'db', 'name' => 'all', 'sha256' => str_repeat('a', 64)],
+                'backup.db', 'backup.files', 'backup.caddy' => ['key' => 'azerioid/db/all/20260828T000000Z.bin', 'size' => 1024, 'kind' => 'db', 'name' => 'all', 'sha256' => str_repeat('a', 64)],
                 'backup.list' => ['objects' => [[
-                    'key' => 'lacmp/db/all/20260828T000000Z.bin', 'size' => 1024, 'last_modified' => '2026-08-28T00:00:00Z', 'kind' => 'db', 'name' => 'all',
+                    'key' => 'azerioid/db/all/20260828T000000Z.bin', 'size' => 1024, 'last_modified' => '2026-08-28T00:00:00Z', 'kind' => 'db', 'name' => 'all',
                 ]]],
                 'backup.prune' => ['deleted' => [], 'keep' => 14],
                 'backup.restore.db' => $this->restoreDb($stdin),
                 'backup.restore.files' => $this->restoreFiles($stdin),
-                'spaces.test' => ['ok' => true, 'bucket' => 'lacmp', 'region' => 'fra1'],
+                'spaces.test' => ['ok' => true, 'bucket' => 'azerioid', 'region' => 'fra1'],
                 'auth.audit' => ['path' => '/var/log/auth.log', 'missing' => false, 'success' => [['user' => 'root', 'ip' => '127.0.0.1', 'method' => 'publickey', 'line' => 'Accepted publickey for root from 127.0.0.1']], 'failed' => [], 'failed_count' => 0, 'new_root_ips' => []],
                 'firewall.status' => ['ufw' => ['installed' => true, 'status' => "Status: active\nTo 22 ALLOW  Anywhere"], 'fail2ban' => ['installed' => false]],
                 'firewall.unban' => ['ip' => $args[0] ?? '', 'jail' => $args[1] ?? 'sshd'],
@@ -272,7 +292,7 @@ final class FakeBroker
             $this->requireConfirm($stdin, $confirmToken, []);
         }
         return [
-            'staged' => '/var/lib/lacmp-panel/staging/restore-'.$site,
+            'staged' => '/var/lib/azerioid-panel/staging/restore-'.$site,
             'preview' => [$site.'/index.php'],
             'applied' => $apply,
             'forced_readonly' => $protected && $force && $apply,
@@ -387,5 +407,224 @@ final class FakeBroker
             'ini' => '/etc/php/8.4/fpm/php.ini',
             'status' => $this->svc('php8.4-fpm'),
         ]]];
+    }
+
+    private function componentList(): array
+    {
+        $components = $this->fakeRegistryComponents();
+        return [
+            'distro_key' => 'ubuntu',
+            'distro_id' => 'ubuntu',
+            'distro_version' => '24',
+            'pkg_mgr' => 'apt',
+            'registry_path' => base_path('../registry/components'),
+            'components' => $components,
+            'observed_extras' => [],
+        ];
+    }
+
+    private function componentStatus(string $id): array
+    {
+        $id = strtolower(trim($id));
+        foreach ($this->fakeRegistryComponents() as $component) {
+            if (($component['id'] ?? '') === $id) {
+                return $component + [
+                    'distro_key' => 'ubuntu',
+                    'distro_id' => 'ubuntu',
+                ];
+            }
+        }
+        throw new BrokerCallException('Unknown component id.', 2);
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function fakeRegistryComponents(): array
+    {
+        $defs = [
+            ['id' => 'caddy', 'display_name' => 'Caddy', 'category' => 'web', 'system' => true, 'status' => 'active', 'installable' => false],
+            ['id' => 'php-8.4', 'display_name' => 'PHP 8.4 (panel runtime)', 'category' => 'runtime', 'system' => true, 'status' => 'active', 'installable' => false],
+            ['id' => 'nginx', 'display_name' => 'Nginx', 'category' => 'web', 'system' => false, 'status' => 'not_installed', 'installable' => true, 'unit' => 'nginx'],
+            ['id' => 'apache', 'display_name' => 'Apache', 'category' => 'web', 'system' => false, 'status' => 'not_installed', 'installable' => true, 'unit' => 'apache2'],
+            ['id' => 'php-8.1', 'display_name' => 'PHP 8.1', 'category' => 'runtime', 'system' => false, 'status' => 'not_installed', 'installable' => true, 'unit' => 'php8.1-fpm'],
+            ['id' => 'php-8.2', 'display_name' => 'PHP 8.2', 'category' => 'runtime', 'system' => false, 'status' => 'not_installed', 'installable' => true, 'unit' => 'php8.2-fpm'],
+            ['id' => 'php-8.3', 'display_name' => 'PHP 8.3', 'category' => 'runtime', 'system' => false, 'status' => 'not_installed', 'installable' => true, 'unit' => 'php8.3-fpm'],
+            ['id' => 'mariadb', 'display_name' => 'MariaDB', 'category' => 'database', 'system' => false, 'status' => 'not_installed', 'installable' => true, 'unit' => 'mariadb'],
+            ['id' => 'postgresql', 'display_name' => 'PostgreSQL', 'category' => 'database', 'system' => false, 'status' => 'not_installed', 'installable' => true, 'unit' => 'postgresql'],
+            ['id' => 'mongodb', 'display_name' => 'MongoDB', 'category' => 'database', 'system' => false, 'status' => 'not_installed', 'installable' => true, 'unit' => 'mongod'],
+            ['id' => 'redis', 'display_name' => 'Redis', 'category' => 'cache', 'system' => false, 'status' => 'not_installed', 'installable' => true, 'unit' => 'redis-server'],
+            ['id' => 'memcached', 'display_name' => 'Memcached', 'category' => 'cache', 'system' => false, 'status' => 'not_installed', 'installable' => true, 'unit' => 'memcached'],
+            [
+                'id' => 'nodejs',
+                'display_name' => 'Node.js',
+                'category' => 'runtime',
+                'system' => false,
+                'status' => 'not_installed',
+                'installable' => true,
+                'install_options' => ['node_major' => ['default' => '22', 'choices' => ['20', '22', '24']]],
+            ],
+        ];
+
+        return array_map(function (array $row): array {
+            $system = (bool) ($row['system'] ?? false);
+            $id = (string) $row['id'];
+            $installed = isset($this->fakeInstalledComponents[$id]);
+            $observed = isset($this->fakeObservedComponents[$id]);
+            $status = $installed ? 'active' : ($observed ? 'installed' : (string) ($row['status'] ?? 'not_installed'));
+            $kind = $system ? 'system' : ($installed ? 'managed' : ($observed ? 'observed' : 'managed'));
+            $adoptable = $observed && !$installed;
+
+            return [
+                'id' => $id,
+                'display_name' => $row['display_name'],
+                'category' => $row['category'],
+                'description' => $system ? 'Panel runtime component' : 'Registry catalog entry',
+                'managed' => true,
+                'system' => $system,
+                'kind' => $kind,
+                'status' => $status,
+                'status_detail' => $installed
+                    ? 'Installed by panel (fake).'
+                    : ($observed ? 'Detected on host; adopt to manage.' : 'Package not detected on this host.'),
+                'unit' => $row['unit'] ?? ($id === 'caddy' ? 'caddy' : ($id === 'php-8.4' ? 'php8.4-fpm' : null)),
+                'removable' => !$system,
+                'installable' => (bool) ($row['installable'] ?? false) && !$observed,
+                'adoptable' => $adoptable,
+                'conflicts' => [],
+                'ports' => [],
+                'install_options' => is_array($row['install_options'] ?? null) ? $row['install_options'] : [],
+            ];
+        }, $defs);
+    }
+
+    /** @return list<string> */
+    private function installableComponentIds(): array
+    {
+        return [
+            'redis', 'mariadb', 'postgresql', 'nginx', 'apache',
+            'memcached', 'mongodb', 'nodejs', 'php-8.1', 'php-8.2', 'php-8.3',
+        ];
+    }
+
+    private function componentPreflight(string $id): array
+    {
+        if (!in_array($id, $this->installableComponentIds(), true)) {
+            throw new BrokerCallException('Component is not installable from the panel (not in registry allowlist).', 3);
+        }
+        if ($id === 'postgresql' && isset($this->fakeInstalledComponents['mariadb'])) {
+            return ['component_id' => $id, 'ok' => false, 'issues' => ['Conflicts with mariadb, which is already present on this host.']];
+        }
+        if ($id === 'mariadb' && isset($this->fakeInstalledComponents['postgresql'])) {
+            return ['component_id' => $id, 'ok' => false, 'issues' => ['Conflicts with postgresql, which is already present on this host.']];
+        }
+        return ['component_id' => $id, 'ok' => true, 'issues' => []];
+    }
+
+    /** @param array<string, mixed> $stdin */
+    private function componentInstall(string $id, array $stdin): array
+    {
+        if (!in_array($id, $this->installableComponentIds(), true)) {
+            throw new BrokerCallException('Component is not installable from the panel (not in registry allowlist).', 3);
+        }
+        if (in_array($id, ['php-8.4'], true)) {
+            throw new BrokerCallException('Panel PHP runtime cannot be installed from the Components page.', 3);
+        }
+        $this->fakeInstalledComponents[$id] = true;
+        if ($id === 'mariadb') {
+            $this->databaseEngine = 'mariadb';
+        }
+        if ($id === 'postgresql') {
+            $this->databaseEngine = 'postgresql';
+            $this->postgresqlConfigured = true;
+        }
+        $op = (string) ($stdin['operation_id'] ?? 'op-fake');
+        return [
+            'component_id' => $id,
+            'operation_id' => $op,
+            'log_path' => '/var/lib/azerioid-panel/staging/operations/'.$op.'.log',
+            'status' => $this->componentStatus($id),
+        ];
+    }
+
+    private function componentAdopt(string $id): array
+    {
+        if (!isset($this->fakeObservedComponents[$id])) {
+            throw new BrokerCallException('Only observed (pre-existing) components can be adopted.', 3);
+        }
+        unset($this->fakeObservedComponents[$id]);
+        $this->fakeInstalledComponents[$id] = true;
+        if ($id === 'mariadb') {
+            $this->databaseEngine = 'mariadb';
+        }
+        if ($id === 'postgresql') {
+            $this->databaseEngine = 'postgresql';
+            $this->postgresqlConfigured = true;
+        }
+
+        return [
+            'component_id' => $id,
+            'adopted' => true,
+            'status' => $this->componentStatus($id),
+            'migration_note' => $id === 'mariadb'
+                ? 'Run sudo ./deploy/migrate.sh to copy the legacy lacmp_panel database into SQLite. Site databases are unchanged.'
+                : null,
+        ];
+    }
+
+    /** @param array<string, mixed> $stdin */
+    private function componentUninstall(string $id, array $stdin): array
+    {
+        if (!isset($this->fakeInstalledComponents[$id])) {
+            throw new BrokerCallException('Component was not installed by the panel.', 3);
+        }
+        unset($this->fakeInstalledComponents[$id]);
+        if ($id === 'mariadb' && $this->databaseEngine === 'mariadb') {
+            $this->databaseEngine = $this->postgresqlConfigured ? 'postgresql' : 'mariadb';
+        }
+        if ($id === 'postgresql') {
+            $this->postgresqlConfigured = false;
+            if ($this->databaseEngine === 'postgresql') {
+                $this->databaseEngine = 'mariadb';
+            }
+        }
+        return [
+            'component_id' => $id,
+            'operation_id' => (string) ($stdin['operation_id'] ?? 'op-fake'),
+            'log_path' => '/var/lib/azerioid-panel/staging/operations/op-fake.log',
+        ];
+    }
+
+    private function dbEngine(): array
+    {
+        return [
+            'active' => $this->databaseEngine,
+            'engines' => [
+                ['id' => 'mariadb', 'label' => 'MariaDB', 'configured' => true, 'active' => $this->databaseEngine === 'mariadb'],
+                ['id' => 'postgresql', 'label' => 'PostgreSQL', 'configured' => $this->postgresqlConfigured, 'active' => $this->databaseEngine === 'postgresql'],
+            ],
+        ];
+    }
+
+    /** @param list<string> $args */
+    private function dbDump(array $args): array
+    {
+        $name = $args[0] ?? 'all';
+        $engine = $this->databaseEngine;
+
+        return [
+            'path' => '/var/lib/azerioid-panel/staging/dumps/'.$engine.'-'.$name.'-fake.sql.gz',
+            'size_bytes' => 1024,
+            'engine' => $engine,
+            'name' => $name,
+        ];
+    }
+
+    private function componentOperationLog(string $opKey): array
+    {
+        return [
+            'operation_id' => $opKey,
+            'path' => '/var/lib/azerioid-panel/staging/operations/'.$opKey.'.log',
+            'lines' => ['INFO fake install log line'],
+            'missing' => false,
+        ];
     }
 }

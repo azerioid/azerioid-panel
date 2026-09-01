@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker;
+namespace AzerioidPanel\Broker;
 
 /**
  * Run Caddy CLI as the systemd service user and keep /var/lib/caddy owned by

@@ -36,7 +36,7 @@ class Login extends Component
         ]);
 
         $key = 'login:' . strtolower($this->email) . '|' . request()->ip();
-        if (RateLimiter::tooManyAttempts($key, (int) config('lacmp.login.max_attempts', 5))) {
+        if (RateLimiter::tooManyAttempts($key, (int) config('azerioid.login.max_attempts', 5))) {
             throw ValidationException::withMessages([
                 'email' => 'Too many attempts. Try again shortly.',
             ]);
@@ -50,13 +50,13 @@ class Login extends Component
         }
 
         if (! $user || ! Hash::check($this->password, $user->password)) {
-            RateLimiter::hit($key, (int) config('lacmp.login.decay_seconds', 60));
+            RateLimiter::hit($key, (int) config('azerioid.login.decay_seconds', 60));
             \App\Support\AuthFailLog::write(request()->ip());
             if ($user) {
                 $user->increment('failed_logins');
-                if ($user->failed_logins >= (int) config('lacmp.login.lockout_attempts', 10)) {
+                if ($user->failed_logins >= (int) config('azerioid.login.lockout_attempts', 10)) {
                     $user->forceFill([
-                        'locked_until' => now()->addMinutes((int) config('lacmp.login.lockout_minutes', 15)),
+                        'locked_until' => now()->addMinutes((int) config('azerioid.login.lockout_minutes', 15)),
                     ])->save();
                 }
             }
@@ -80,7 +80,7 @@ class Login extends Component
             'last_login_ip' => request()->ip(),
         ])->save();
 
-        if (config('lacmp.require_totp')) {
+        if (config('azerioid.require_totp')) {
             $this->redirectRoute('two-factor.setup', navigate: true);
 
             return;

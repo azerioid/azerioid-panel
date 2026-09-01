@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker\Actions;
+namespace AzerioidPanel\Broker\Actions;
 
-use LacmpPanel\Broker\Config;
-use LacmpPanel\Broker\Runtime;
-use LacmpPanel\Broker\SpacesClient;
+use AzerioidPanel\Broker\Config;
+use AzerioidPanel\Broker\Runtime;
+use AzerioidPanel\Broker\SpacesClient;
 
 final class BackupPrune
 {
@@ -13,7 +13,7 @@ final class BackupPrune
     {
         $client = SpacesClient::fromInput($input['spaces'] ?? []);
         $keep = max(1, min(365, (int) ($input['keep'] ?? $args[0] ?? 14)));
-        $listed = $client->list('lacmp/');
+        $listed = $client->list('azerioid/');
         $byKind = [];
         foreach ($listed['objects'] as $obj) {
             $key = (string) ($obj['key'] ?? '');

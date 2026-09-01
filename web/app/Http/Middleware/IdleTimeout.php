@@ -11,7 +11,7 @@ final class IdleTimeout
     public function handle(Request $request, Closure $next): Response
     {
         if ($request->user()) {
-            $idle = (int) (session('idle_minutes') ?: config('lacmp.session_idle_minutes', 15));
+            $idle = (int) (session('idle_minutes') ?: config('azerioid.session_idle_minutes', 15));
             $last = (int) $request->session()->get('last_activity_at', time());
             if ($idle > 0 && (time() - $last) > ($idle * 60)) {
                 auth()->logout();

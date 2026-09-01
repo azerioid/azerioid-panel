@@ -5,11 +5,12 @@
   "description": "PostgreSQL relational database server",
   "managed": true,
   "system": false,
+  "installable": true,
   "min_os": { "ubuntu": "24.04", "debian": "12", "el": "9" },
   "ports": [
     { "port": 5432, "bind": "127.0.0.1", "owner": "postgres", "protocol": "tcp" }
   ],
-  "conflicts": [],
+  "conflicts": ["mariadb"],
   "distros": {
     "ubuntu": {
       "packages": ["postgresql"],

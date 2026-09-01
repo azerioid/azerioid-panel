@@ -1,13 +1,13 @@
 <div>
     <h2 class="mb-1 text-base font-medium text-zinc-100">
-        @if (config('lacmp.require_totp'))
+        @if (config('azerioid.require_totp'))
             Two-factor is required
         @else
             Enroll authenticator (optional)
         @endif
     </h2>
     <p class="mb-4 text-sm text-zinc-500">
-        @if (config('lacmp.require_totp'))
+        @if (config('azerioid.require_totp'))
             This panel can restart services and drop databases. TOTP is required.
         @else
             TOTP is optional on this panel. You can enroll now or skip.
@@ -20,7 +20,7 @@
         @error('code') <p class="text-sm text-bad">{{ $message }}</p> @enderror
         <button type="submit" class="btn-primary w-full">Enable 2FA</button>
     </form>
-    @unless (config('lacmp.require_totp'))
+    @unless (config('azerioid.require_totp'))
         <button type="button" class="btn-ghost mt-3 w-full" wire:click="skip">Skip</button>
     @endunless
 </div>

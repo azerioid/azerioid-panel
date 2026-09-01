@@ -1,4 +1,4 @@
-# Not installed. Optional extras for /etc/lacmp-panel/broker.json.
+# Not installed. Optional extras for /etc/azerioid-panel/broker.json.
 # Observed entries are listed with no Start/Stop/Restart.
 # The default is an empty array; only add what this host should show.
 #

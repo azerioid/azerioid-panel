@@ -5,6 +5,7 @@
   "description": "Apache HTTP Server",
   "managed": true,
   "system": false,
+  "installable": true,
   "min_os": { "ubuntu": "24.04", "debian": "12", "el": "9" },
   "ports": [
     { "port": 80, "bind": "0.0.0.0", "owner": "apache", "protocol": "tcp" },

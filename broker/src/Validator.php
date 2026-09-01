@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker;
+namespace AzerioidPanel\Broker;
 
 final class Validator
 {
@@ -10,6 +10,7 @@ final class Validator
     public const PHP_VERSION_PATTERN = '/^[0-9]+\.[0-9]+$/';
     public const SERVICE_PATTERN = '/^[a-z][a-z0-9@._-]{0,63}$/';
     public const ACTION_PATTERN = '/^[a-z][a-z0-9]*(\.[a-z][a-z0-9-]*)+$/';
+    public const COMPONENT_ID_PATTERN = '/^[a-z][a-z0-9.-]{0,63}$/';
     public const INI_KEY_PATTERN = '/^[a-zA-Z0-9_.]{1,64}$/';
     public const LOCAL_UPSTREAM_PATTERN = '/^127\.0\.0\.1:([1-9][0-9]{0,4})$/';
 
@@ -40,6 +41,24 @@ final class Validator
             throw new BrokerException('Unknown or invalid action.', 2);
         }
         return $action;
+    }
+
+    public static function componentId(string $id): string
+    {
+        $id = strtolower(trim($id));
+        if ($id === '' || !preg_match(self::COMPONENT_ID_PATTERN, $id)) {
+            throw new BrokerException('Invalid component id.', 2);
+        }
+        return $id;
+    }
+
+    public static function operationId(string $id): string
+    {
+        $id = trim($id);
+        if ($id === '' || !preg_match('/^[a-zA-Z0-9_-]{1,64}$/', $id)) {
+            throw new BrokerException('Invalid operation id.', 2);
+        }
+        return $id;
     }
 
     public static function domain(string $domain): string

@@ -54,7 +54,7 @@
                 <div><dt class="text-zinc-600">PHP version</dt><dd>{{ $panelRuntime['php_version'] ?? '—' }}</dd></div>
                 <div><dt class="text-zinc-600">FPM pool</dt><dd>{{ $panelRuntime['fpm_pool'] ?? '—' }}</dd></div>
                 <div><dt class="text-zinc-600">FPM socket</dt><dd>{{ $panelRuntime['fpm_socket'] ?? '—' }}</dd></div>
-                <div><dt class="text-zinc-600">Queue worker</dt><dd>{{ ($panelRuntime['queue_active'] ?? false) ? 'active' : 'inactive' }} ({{ $panelRuntime['queue_unit'] ?? 'lacmp-panel-queue.service' }})</dd></div>
+                <div><dt class="text-zinc-600">Queue worker</dt><dd>{{ ($panelRuntime['queue_active'] ?? false) ? 'active' : 'inactive' }} ({{ $panelRuntime['queue_unit'] ?? 'azerioid-panel-queue.service' }})</dd></div>
             </dl>
             <p class="text-sm text-zinc-500">System component — cannot be removed while the panel is running.</p>
         @else

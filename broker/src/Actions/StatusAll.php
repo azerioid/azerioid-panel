@@ -1,13 +1,13 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker\Actions;
+namespace AzerioidPanel\Broker\Actions;
 
-use LacmpPanel\Broker\Config;
-use LacmpPanel\Broker\ProcMetrics;
-use LacmpPanel\Broker\Runtime;
-use LacmpPanel\Broker\Systemd;
-use LacmpPanel\Broker\Validator;
+use AzerioidPanel\Broker\Config;
+use AzerioidPanel\Broker\ProcMetrics;
+use AzerioidPanel\Broker\Runtime;
+use AzerioidPanel\Broker\Systemd;
+use AzerioidPanel\Broker\Validator;
 
 final class StatusAll
 {
@@ -92,9 +92,9 @@ final class StatusAll
     private static function proxyUpstreams(Runtime $runtime, Config $config): array
     {
         $byUpstream = [];
-        foreach (\LacmpPanel\Broker\Web\WebServers::for($config)->listVhosts($runtime, $config) as $parsed) {
+        foreach (\AzerioidPanel\Broker\Web\WebServers::for($config)->listVhosts($runtime, $config) as $parsed) {
             $base = basename((string) ($parsed['source'] ?? ''), '.conf');
-            if ($base === 'lacmp-panel' || $base === 'default') {
+            if ($base === 'azerioid-panel' || $base === 'default') {
                 continue;
             }
             $proxy = $parsed['reverse_proxy'] ?? null;

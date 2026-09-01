@@ -1,0 +1,9 @@
+# Stack Manager — sudoers
+#
+# The web worker (caddy) may run ONLY this broker, as root, with no password.
+# Never add wildcards, never allow /bin/systemctl.
+#
+# Validate: visudo -c -f /etc/sudoers.d/azerioid-panel
+Defaults:caddy !requiretty
+Defaults:caddy umask=0022
+caddy ALL=(root) NOPASSWD: /usr/local/lib/azerioid-panel/broker

@@ -5,6 +5,7 @@
   "description": "PHP 8.1 FPM runtime for sites",
   "managed": true,
   "system": false,
+  "installable": true,
   "min_os": { "ubuntu": "24.04", "debian": "12", "el": "9" },
   "ports": [],
   "conflicts": [],

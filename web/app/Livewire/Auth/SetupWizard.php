@@ -52,7 +52,7 @@ class SetupWizard extends Component
         session()->regenerate();
         session()->put('last_activity_at', time());
 
-        if (! config('lacmp.require_totp')) {
+        if (! config('azerioid.require_totp')) {
             $this->redirectRoute('dashboard', navigate: true);
 
             return;

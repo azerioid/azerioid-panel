@@ -15,7 +15,7 @@
             <div class="font-semibold tracking-wide text-zinc-100">LACMP Panel</div>
             <div class="font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-500">
                 privileged operations
-                @if (config('lacmp.require_totp'))
+                @if (config('azerioid.require_totp'))
                     · 2FA required
                 @else
                     · password only

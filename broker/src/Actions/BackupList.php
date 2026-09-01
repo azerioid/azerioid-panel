@@ -1,18 +1,18 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker\Actions;
+namespace AzerioidPanel\Broker\Actions;
 
-use LacmpPanel\Broker\Config;
-use LacmpPanel\Broker\Runtime;
-use LacmpPanel\Broker\SpacesClient;
+use AzerioidPanel\Broker\Config;
+use AzerioidPanel\Broker\Runtime;
+use AzerioidPanel\Broker\SpacesClient;
 
 final class BackupList
 {
     public function handle(string $action, array $args, array $input, Runtime $runtime, Config $config): array
     {
         $client = SpacesClient::fromInput($input['spaces'] ?? []);
-        $listed = $client->list('lacmp/');
+        $listed = $client->list('azerioid/');
         $objects = [];
         foreach ($listed['objects'] as $obj) {
             $key = (string) ($obj['key'] ?? '');

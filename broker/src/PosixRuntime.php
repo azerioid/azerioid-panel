@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker;
+namespace AzerioidPanel\Broker;
 
 use PDO;
 use PDOException;
@@ -99,7 +99,7 @@ final class PosixRuntime implements Runtime
     {
         $home = getenv('HOME');
         if (! is_string($home) || $home === '') {
-            $home = is_dir('/var/lib/caddy') ? '/var/lib/caddy' : '/var/lib/lacmp-panel';
+            $home = is_dir('/var/lib/caddy') ? '/var/lib/caddy' : '/var/lib/azerioid-panel';
         }
         $path = getenv('PATH') ?: '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
         $xdgConfig = getenv('XDG_CONFIG_HOME');

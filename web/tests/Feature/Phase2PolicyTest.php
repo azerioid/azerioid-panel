@@ -20,7 +20,7 @@ class Phase2PolicyTest extends TestCase
         $this->seedBackupSecrets();
 
         Livewire::test(\App\Livewire\BackupsPage::class)
-            ->set('restore_key', 'lacmp/files/projob.az/fixture.bin')
+            ->set('restore_key', 'azerioid/files/projob.az/fixture.bin')
             ->set('restore_site', 'projob.az')
             ->set('restore_force', false)
             ->call('applyFiles')
@@ -33,7 +33,7 @@ class Phase2PolicyTest extends TestCase
         $this->seedBackupSecrets();
 
         Livewire::test(\App\Livewire\BackupsPage::class)
-            ->set('restore_key', 'lacmp/db/projob/fixture.bin')
+            ->set('restore_key', 'azerioid/db/projob/fixture.bin')
             ->set('restore_target', 'projob')
             ->set('restore_overwrite', false)
             ->call('restoreDb')
@@ -46,7 +46,7 @@ class Phase2PolicyTest extends TestCase
         $this->seedBackupSecrets();
 
         Livewire::test(\App\Livewire\BackupsPage::class)
-            ->set('restore_key', 'lacmp/db/all/fixture.bin')
+            ->set('restore_key', 'azerioid/db/all/fixture.bin')
             ->set('restore_target', 'projob_restore_1')
             ->call('restoreDb')
             ->assertSet('error', null)
@@ -68,7 +68,7 @@ class Phase2PolicyTest extends TestCase
         Livewire::test(\App\Livewire\BackupsPage::class)
             ->set('endpoint', 'https://fra1.digitaloceanspaces.com')
             ->set('region', 'fra1')
-            ->set('bucket', 'lacmp-backups')
+            ->set('bucket', 'azerioid-backups')
             ->set('access_key', 'DO00TESTKEY')
             ->set('secret', 'supersecretkeyvalue')
             ->set('passphrase', 'abcdefghijklmnopqrst')
@@ -87,7 +87,7 @@ class Phase2PolicyTest extends TestCase
     {
         Setting::put('spaces.endpoint', 'https://fra1.digitaloceanspaces.com');
         Setting::put('spaces.region', 'fra1');
-        Setting::put('spaces.bucket', 'lacmp-backups');
+        Setting::put('spaces.bucket', 'azerioid-backups');
         Setting::putSecret('spaces.access_key', 'DO00TESTKEY');
         Setting::putSecret('spaces.secret', 'supersecretkeyvalue');
         Setting::putSecret('backup.passphrase', 'abcdefghijklmnopqrst');

@@ -13,13 +13,13 @@ install_security() {
             dnf) dnf -y install fail2ban >/dev/null 2>&1 || true ;;
         esac
         install -d -m 0755 /etc/fail2ban/filter.d /etc/fail2ban/jail.d
-        install -m 0644 "${ROOT}/deploy/fail2ban/filter.d/lacmp-panel.conf" \
-            /etc/fail2ban/filter.d/lacmp-panel.conf
-        cat > /etc/fail2ban/jail.d/lacmp-panel.conf <<EOF
-[lacmp-panel]
+        install -m 0644 "${ROOT}/deploy/fail2ban/filter.d/azerioid-panel.conf" \
+            /etc/fail2ban/filter.d/azerioid-panel.conf
+        cat > /etc/fail2ban/jail.d/azerioid-panel.conf <<EOF
+[azerioid-panel]
 enabled  = true
-filter   = lacmp-panel
-logpath  = /var/log/lacmp-panel/auth-fail.log
+filter   = azerioid-panel
+logpath  = /var/log/azerioid-panel/auth-fail.log
 backend  = auto
 maxretry = 5
 findtime = 600
@@ -40,12 +40,12 @@ EOF
         fi
     fi
 
-    install -d -m 0750 /etc/lacmp-panel
-    cat > /etc/lacmp-panel/access.env <<EOF
+    install -d -m 0750 /etc/azerioid-panel
+    cat > /etc/azerioid-panel/access.env <<EOF
 ACCESS_MODE=${ACCESS:-tunnel}
 PANEL_PORT=${PANEL_PORT}
 STACK=bootstrap
 WEB_SERVICE=caddy
 EOF
-    chmod 0640 /etc/lacmp-panel/access.env
+    chmod 0640 /etc/azerioid-panel/access.env
 }

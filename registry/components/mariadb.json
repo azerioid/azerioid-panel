@@ -5,6 +5,7 @@
   "description": "MariaDB relational database server",
   "managed": true,
   "system": false,
+  "installable": true,
   "min_os": { "ubuntu": "24.04", "debian": "12", "el": "9" },
   "ports": [
     { "port": 3306, "bind": "127.0.0.1", "owner": "mariadb", "protocol": "tcp" }
@@ -14,20 +15,17 @@
     "ubuntu": {
       "packages": ["mariadb-server"],
       "unit_name": "mariadb",
-      "detect": { "packages": ["mariadb-server"], "unit": "mariadb", "command": "mariadb --version" },
-      "secure": ["mysql_secure_installation"]
+      "detect": { "packages": ["mariadb-server"], "unit": "mariadb", "command": "mariadb --version" }
     },
     "debian": {
       "packages": ["mariadb-server"],
       "unit_name": "mariadb",
-      "detect": { "packages": ["mariadb-server"], "unit": "mariadb", "command": "mariadb --version" },
-      "secure": ["mysql_secure_installation"]
+      "detect": { "packages": ["mariadb-server"], "unit": "mariadb", "command": "mariadb --version" }
     },
     "el": {
       "packages": ["mariadb-server"],
       "unit_name": "mariadb",
-      "detect": { "packages": ["mariadb-server"], "unit": "mariadb", "command": "mariadb --version" },
-      "secure": ["mysql_secure_installation"]
+      "detect": { "packages": ["mariadb-server"], "unit": "mariadb", "command": "mariadb --version" }
     }
   },
   "preflight": { "min_disk_gb": 2, "min_ram_mb": 1024 }

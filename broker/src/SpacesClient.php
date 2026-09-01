@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker;
+namespace AzerioidPanel\Broker;
 
 /**
  * Minimal S3/Spaces client (Sig V4). Secrets stay in this process; never logged.

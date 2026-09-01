@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker\Web;
+namespace AzerioidPanel\Broker\Web;
 
 /**
  * Generic read-only rules for stack-managed sites (no per-customer hostnames).
@@ -14,7 +14,7 @@ final class ManagedVhost
         '000-default',
         'default-ssl',
         'localhost',
-        'lacmp-panel',
+        'azerioid-panel',
     ];
 
     /** Document roots that ship with Apache/LACMP, not panel-created sites. */
@@ -65,7 +65,7 @@ final class ManagedVhost
         if ($rootNorm !== '' && in_array($rootNorm, self::DEFAULT_DOCROOTS, true)) {
             return true;
         }
-        if ($rootNorm !== '' && str_contains($rootNorm, '/lacmp-panel/web/public')) {
+        if ($rootNorm !== '' && str_contains($rootNorm, '/azerioid-panel/web/public')) {
             return true;
         }
 

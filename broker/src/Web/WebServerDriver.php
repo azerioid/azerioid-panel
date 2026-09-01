@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker\Web;
+namespace AzerioidPanel\Broker\Web;
 
-use LacmpPanel\Broker\Config;
-use LacmpPanel\Broker\Runtime;
+use AzerioidPanel\Broker\Config;
+use AzerioidPanel\Broker\Runtime;
 
 interface WebServerDriver
 {

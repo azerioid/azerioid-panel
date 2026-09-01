@@ -1,14 +1,14 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker\Web;
+namespace AzerioidPanel\Broker\Web;
 
-use LacmpPanel\Broker\BrokerException;
-use LacmpPanel\Broker\CaddyApply;
-use LacmpPanel\Broker\CaddyCli;
-use LacmpPanel\Broker\CaddyParser;
-use LacmpPanel\Broker\Config;
-use LacmpPanel\Broker\Runtime;
+use AzerioidPanel\Broker\BrokerException;
+use AzerioidPanel\Broker\CaddyApply;
+use AzerioidPanel\Broker\CaddyCli;
+use AzerioidPanel\Broker\CaddyParser;
+use AzerioidPanel\Broker\Config;
+use AzerioidPanel\Broker\Runtime;
 
 final class CaddyDriver implements WebServerDriver
 {

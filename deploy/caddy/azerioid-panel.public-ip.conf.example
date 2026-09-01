@@ -6,8 +6,8 @@
 https://203.0.113.10:3169 {
     tls internal
     encode gzip zstd
-    root * /usr/local/lib/lacmp-panel/web/public
-    php_fastcgi unix//run/php/lacmp-panel.sock
+    root * /usr/local/lib/azerioid-panel/web/public
+    php_fastcgi unix//run/php/azerioid-panel.sock
     file_server
     header {
         X-Content-Type-Options nosniff
@@ -16,6 +16,6 @@ https://203.0.113.10:3169 {
         -Server
     }
     log {
-        output file /var/log/caddy/lacmp-panel.log
+        output file /var/log/caddy/azerioid-panel.log
     }
 }

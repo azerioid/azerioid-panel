@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker;
+namespace AzerioidPanel\Broker;
 
 final class Config
 {
@@ -17,29 +17,41 @@ final class Config
     public string $stack = 'lcmp';
     public string $webServer = 'caddy';
     public string $webService = 'caddy';
+    public string $siteWebServer = '';
     public string $vhostDir = '/etc/caddy/conf.d';
     public string $vhostAvailableDir = '';
     public string $vhostFormat = 'caddyfile';
     public string $apacheCtl = '/usr/sbin/apachectl';
     public string $webLogDir = '/var/log/caddy';
-    public string $auditLog = '/var/log/lacmp-panel/broker-audit.log';
+    public string $auditLog = '/var/log/azerioid-panel/broker-audit.log';
     public string $mysqlSocket = '/run/mysqld/mysqld.sock';
-    public string $mysqlUser = 'lacmp_panel_admin';
+    public string $mysqlUser = 'azerioid_panel_admin';
     public string $mysqlPassword = '';
+    public string $databaseEngine = '';
+    public string $postgresqlHost = '127.0.0.1';
+    public int $postgresqlPort = 5432;
+    public string $postgresqlUser = 'azerioid_panel_admin';
+    public string $postgresqlPassword = '';
+    public string $mongodbHost = '127.0.0.1';
+    public int $mongodbPort = 27017;
+    public string $mongodbUser = 'azerioid_panel_admin';
+    public string $mongodbPassword = '';
     public string $phpUser = 'caddy';
     public string $phpGroup = 'caddy';
     public string $mariadbServerCnf = '/etc/mysql/mariadb.conf.d/50-server.cnf';
-    public string $panelRoot = '/usr/local/lib/lacmp-panel';
-    public string $artisanPath = '/usr/local/lib/lacmp-panel/web/artisan';
-    public string $stagingDir = '/var/lib/lacmp-panel/staging';
-    public string $cronDPath = '/etc/cron.d/lacmp-panel';
+    public string $panelRoot = '/usr/local/lib/azerioid-panel';
+    public string $artisanPath = '/usr/local/lib/azerioid-panel/web/artisan';
+    public string $stagingDir = '/var/lib/azerioid-panel/staging';
+    public string $cronDPath = '/etc/cron.d/azerioid-panel';
     public string $webUser = 'caddy';
 
     public string $panelPhpVersion = '8.4';
-    public string $panelFpmSocket = '/run/php/lacmp-panel.sock';
-    public string $panelFpmPool = 'lacmp-panel';
+    public string $panelFpmSocket = '/run/php/azerioid-panel.sock';
+    public string $panelFpmPool = 'azerioid-panel';
     public string $panelFpmUnit = 'php8.4-fpm';
-    public string $panelRuntimeQueueUnit = 'lacmp-panel-queue.service';
+    public string $panelRuntimeQueueUnit = 'azerioid-panel-queue.service';
+    public string $registryComponentsPath = '/usr/local/lib/azerioid-panel/registry/components';
+    public string $managedComponentsPath = '/var/lib/azerioid-panel/managed-components.json';
 
     /** @var list<string> reverse-proxy / operator-protected vhosts (detected at install) */
     public array $readonlyVhosts = [];
@@ -53,7 +65,7 @@ final class Config
         'mariadb' => '/var/log/mysql/error.log',
         'php-fpm' => '/var/log/www-error.log',
         'php-slow' => '/var/log/www-slow.log',
-        'panel-audit' => '/var/log/lacmp-panel/broker-audit.log',
+        'panel-audit' => '/var/log/azerioid-panel/broker-audit.log',
         'auth' => '/var/log/auth.log',
         'auth-syslog' => '/var/log/syslog',
     ];
@@ -88,6 +100,7 @@ final class Config
         }
         $cfg->webServer = (string) ($data['web_server'] ?? $cfg->webServer);
         $cfg->webService = (string) ($data['web_service'] ?? $cfg->webService);
+        $cfg->siteWebServer = (string) ($data['site_web_server'] ?? $cfg->siteWebServer);
         $cfg->vhostFormat = (string) ($data['vhost_format'] ?? $cfg->vhostFormat);
         $cfg->apacheCtl = (string) ($data['paths']['apache_ctl'] ?? $cfg->apacheCtl);
         if ($cfg->stack === 'lamp') {
@@ -107,6 +120,8 @@ final class Config
         $cfg->auditLog = (string) ($data['paths']['audit_log'] ?? $cfg->auditLog);
         $cfg->mariadbServerCnf = (string) ($data['paths']['mariadb_server_cnf'] ?? $cfg->mariadbServerCnf);
         $cfg->panelRoot = (string) ($data['paths']['panel_root'] ?? $cfg->panelRoot);
+        $cfg->registryComponentsPath = (string) ($data['paths']['registry_components'] ?? $cfg->panelRoot.'/registry/components');
+        $cfg->managedComponentsPath = (string) ($data['paths']['managed_components'] ?? $cfg->managedComponentsPath);
         $cfg->artisanPath = (string) ($data['paths']['artisan'] ?? $cfg->artisanPath);
         $cfg->stagingDir = (string) ($data['paths']['staging_dir'] ?? $cfg->stagingDir);
         $cfg->cronDPath = (string) ($data['paths']['cron_d'] ?? $cfg->cronDPath);
@@ -124,6 +139,22 @@ final class Config
         $cfg->mysqlSocket = (string) ($data['mariadb']['socket'] ?? $cfg->mysqlSocket);
         $cfg->mysqlUser = (string) ($data['mariadb']['user'] ?? $cfg->mysqlUser);
         $cfg->mysqlPassword = (string) ($data['mariadb']['password'] ?? $cfg->mysqlPassword);
+        if (isset($data['database']) && is_array($data['database'])) {
+            $db = $data['database'];
+            $cfg->databaseEngine = (string) ($db['engine'] ?? $cfg->databaseEngine);
+            if (isset($db['mariadb']) && is_array($db['mariadb'])) {
+                $cfg->mysqlSocket = (string) ($db['mariadb']['socket'] ?? $cfg->mysqlSocket);
+                $cfg->mysqlUser = (string) ($db['mariadb']['user'] ?? $cfg->mysqlUser);
+                $cfg->mysqlPassword = (string) ($db['mariadb']['password'] ?? $cfg->mysqlPassword);
+            }
+            if (isset($db['postgresql']) && is_array($db['postgresql'])) {
+                $pg = $db['postgresql'];
+                $cfg->postgresqlHost = (string) ($pg['host'] ?? $cfg->postgresqlHost);
+                $cfg->postgresqlPort = (int) ($pg['port'] ?? $cfg->postgresqlPort);
+                $cfg->postgresqlUser = (string) ($pg['user'] ?? $cfg->postgresqlUser);
+                $cfg->postgresqlPassword = (string) ($pg['password'] ?? $cfg->postgresqlPassword);
+            }
+        }
         if (isset($data['readonly_vhosts']) && is_array($data['readonly_vhosts'])) {
             $cfg->readonlyVhosts = array_values(array_map('strval', $data['readonly_vhosts']));
         }
@@ -138,6 +169,13 @@ final class Config
         }
         if (isset($data['logs']) && is_array($data['logs'])) {
             $cfg->logPaths = array_merge($cfg->logPaths, $data['logs']);
+        }
+        if (isset($data['mongodb']) && is_array($data['mongodb'])) {
+            $mongo = $data['mongodb'];
+            $cfg->mongodbHost = (string) ($mongo['host'] ?? $cfg->mongodbHost);
+            $cfg->mongodbPort = (int) ($mongo['port'] ?? $cfg->mongodbPort);
+            $cfg->mongodbUser = (string) ($mongo['user'] ?? $cfg->mongodbUser);
+            $cfg->mongodbPassword = (string) ($mongo['password'] ?? $cfg->mongodbPassword);
         }
         return $cfg;
     }
@@ -163,7 +201,7 @@ final class Config
             '/run/php-fpm/www.sock',
         ];
         foreach ($paths as $path) {
-            if (str_contains($path, 'lacmp-panel')) {
+            if (str_contains($path, 'azerioid-panel')) {
                 continue;
             }
             $exists = $runtime !== null ? $runtime->fileExists($path) : is_file($path);
@@ -188,6 +226,10 @@ final class Config
     public function controllableServiceList(Runtime $runtime): array
     {
         $list = $this->controllableServices;
+        $managed = \AzerioidPanel\Broker\Component\ManagedManifest::load($runtime, $this->managedComponentsPath);
+        foreach ($managed->units() as $unit) {
+            $list[] = $unit;
+        }
         foreach ($runtime->phpVersions() as $ver) {
             $list[] = $this->phpFpmService($ver);
         }

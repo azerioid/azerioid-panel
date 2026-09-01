@@ -4,9 +4,9 @@
 set -euo pipefail
 
 PANEL_PORT=3169
-PANEL_DB="/var/lib/lacmp-panel/panel.sqlite"
-FPM_SOCK="/run/php/lacmp-panel.sock"
-QUEUE_UNIT="lacmp-panel-queue.service"
+PANEL_DB="/var/lib/azerioid-panel/panel.sqlite"
+FPM_SOCK="/run/php/azerioid-panel.sock"
+QUEUE_UNIT="azerioid-panel-queue.service"
 FAILURES=0
 
 while [[ $# -gt 0 ]]; do
@@ -71,7 +71,7 @@ else
 fi
 
 # 6. panel.runtime broker action
-BROKER="/usr/local/lib/lacmp-panel/broker"
+BROKER="/usr/local/lib/azerioid-panel/broker"
 if [[ -x "${BROKER}" ]]; then
     if "${BROKER}" panel.runtime 2>/dev/null | grep -q '"php_version"'; then
         pass "broker panel.runtime returns php_version"
@@ -83,14 +83,14 @@ else
 fi
 
 # 7. Runtime JSON
-if [[ -f /etc/lacmp-panel/runtime.json ]] && grep -q '"panel_php_version"' /etc/lacmp-panel/runtime.json; then
+if [[ -f /etc/azerioid-panel/runtime.json ]] && grep -q '"panel_php_version"' /etc/azerioid-panel/runtime.json; then
     pass "runtime.json present"
 else
     fail "runtime.json missing or incomplete"
 fi
 
 # 8. Bootstrap tracking
-if [[ -f /etc/lacmp-panel/bootstrap.json ]]; then
+if [[ -f /etc/azerioid-panel/bootstrap.json ]]; then
     pass "bootstrap.json present"
 else
     fail "bootstrap.json missing"

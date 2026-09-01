@@ -20,7 +20,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         RateLimiter::for('login', function (Request $request) {
-            $max = (int) config('lacmp.login.max_attempts', 5);
+            $max = (int) config('azerioid.login.max_attempts', 5);
             return Limit::perMinute($max)->by(strtolower((string) $request->input('email')) . '|' . $request->ip());
         });
     }

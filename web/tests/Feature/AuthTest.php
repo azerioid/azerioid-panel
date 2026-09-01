@@ -58,7 +58,7 @@ class AuthTest extends TestCase
             ->assertHasErrors('email');
 
         $this->assertFileExists($log);
-        $this->assertStringContainsString('LACMP_PANEL_AUTH_FAIL ip=', (string) file_get_contents($log));
+        $this->assertStringContainsString('AZERIOID_PANEL_AUTH_FAIL ip=', (string) file_get_contents($log));
     }
 
     public function test_unconfirmed_2fa_user_is_forced_to_setup(): void
@@ -70,7 +70,7 @@ class AuthTest extends TestCase
 
     public function test_require_totp_false_allows_dashboard_without_enrollment(): void
     {
-        config(['lacmp.require_totp' => false]);
+        config(['azerioid.require_totp' => false]);
         $user = $this->admin();
         $this->actingAs($user);
         $this->get('/')->assertOk();
@@ -81,7 +81,7 @@ class AuthTest extends TestCase
 
     public function test_setup_skips_enrollment_when_totp_not_required(): void
     {
-        config(['lacmp.require_totp' => false]);
+        config(['azerioid.require_totp' => false]);
 
         Livewire::test(\App\Livewire\Auth\SetupWizard::class)
             ->assertSee('Password-only', false)
@@ -102,7 +102,7 @@ class AuthTest extends TestCase
 
     public function test_setup_forces_enrollment_when_totp_required(): void
     {
-        config(['lacmp.require_totp' => true]);
+        config(['azerioid.require_totp' => true]);
 
         Livewire::test(\App\Livewire\Auth\SetupWizard::class)
             ->assertSee('2FA enrollment is required', false)
@@ -122,7 +122,7 @@ class AuthTest extends TestCase
 
     public function test_login_is_password_only_when_totp_not_required(): void
     {
-        config(['lacmp.require_totp' => false]);
+        config(['azerioid.require_totp' => false]);
         $user = $this->admin();
 
         Livewire::test(\App\Livewire\Auth\Login::class)
@@ -134,7 +134,7 @@ class AuthTest extends TestCase
 
     public function test_login_sends_unenrolled_user_to_setup_when_totp_required(): void
     {
-        config(['lacmp.require_totp' => true]);
+        config(['azerioid.require_totp' => true]);
         $user = $this->admin();
 
         Livewire::test(\App\Livewire\Auth\Login::class)
@@ -146,7 +146,7 @@ class AuthTest extends TestCase
 
     public function test_optional_totp_setup_can_be_skipped(): void
     {
-        config(['lacmp.require_totp' => false]);
+        config(['azerioid.require_totp' => false]);
         $user = $this->admin();
         $this->actingAs($user);
 

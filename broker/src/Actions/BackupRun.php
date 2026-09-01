@@ -1,15 +1,15 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker\Actions;
+namespace AzerioidPanel\Broker\Actions;
 
-use LacmpPanel\Broker\ArchiveCrypto;
-use LacmpPanel\Broker\BrokerException;
-use LacmpPanel\Broker\Config;
-use LacmpPanel\Broker\Runtime;
-use LacmpPanel\Broker\SpacesClient;
-use LacmpPanel\Broker\Validator;
-use LacmpPanel\Broker\Web\WebServers;
+use AzerioidPanel\Broker\ArchiveCrypto;
+use AzerioidPanel\Broker\BrokerException;
+use AzerioidPanel\Broker\Config;
+use AzerioidPanel\Broker\Runtime;
+use AzerioidPanel\Broker\SpacesClient;
+use AzerioidPanel\Broker\Validator;
+use AzerioidPanel\Broker\Web\WebServers;
 
 final class BackupRun
 {
@@ -27,7 +27,7 @@ final class BackupRun
         };
 
         $blob = ArchiveCrypto::encrypt($plain['bytes'], $passphrase);
-        $key = 'lacmp/' . $plain['kind'] . '/' . $plain['name'] . '/' . $stamp . '.bin';
+        $key = 'azerioid/' . $plain['kind'] . '/' . $plain['name'] . '/' . $stamp . '.bin';
         $uploaded = $client->put($key, $blob);
         unset($plain['bytes'], $blob);
 

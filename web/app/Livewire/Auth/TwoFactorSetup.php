@@ -35,7 +35,7 @@ class TwoFactorSetup extends Component
 
     public function skip(): void
     {
-        abort_if(config('lacmp.require_totp'), 403);
+        abort_if(config('azerioid.require_totp'), 403);
         $this->redirectRoute('dashboard', navigate: true);
     }
 

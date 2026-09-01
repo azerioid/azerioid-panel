@@ -5,18 +5,18 @@ return [
         /*
          * fake      — in-process sample data (local Mac / tests)
          * in-process — run broker Kernel without sudo (dev against fixtures)
-         * sudo      — production: sudo /usr/local/lib/lacmp-panel/broker
+         * sudo      — production: sudo /usr/local/lib/azerioid-panel/broker
          */
         'driver' => env('BROKER_DRIVER', 'fake'),
-        'path' => env('BROKER_PATH', '/usr/local/lib/lacmp-panel/broker'),
+        'path' => env('BROKER_PATH', '/usr/local/lib/azerioid-panel/broker'),
         'use_sudo' => env('BROKER_USE_SUDO', true),
         'sudo_path' => env('BROKER_SUDO_PATH', '/usr/bin/sudo'),
         'timeout' => (int) env('BROKER_TIMEOUT', 45),
     ],
 
-    'www_root' => env('LACMP_WWW_ROOT', '/data/www'),
+    'www_root' => env('AZERIOID_WWW_ROOT', env('LACMP_WWW_ROOT', '/data/www')),
 
-    'session_idle_minutes' => (int) env('LACMP_SESSION_IDLE', 15),
+    'session_idle_minutes' => (int) env('AZERIOID_SESSION_IDLE', env('LACMP_SESSION_IDLE', 15)),
 
     /**
      * Single source of truth for TOTP (installer writes PANEL_REQUIRE_TOTP).

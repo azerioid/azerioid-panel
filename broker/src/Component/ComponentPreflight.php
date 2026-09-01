@@ -1,0 +1,106 @@
+<?php
+declare(strict_types=1);
+
+namespace AzerioidPanel\Broker\Component;
+
+use AzerioidPanel\Broker\Config;
+use AzerioidPanel\Broker\Runtime;
+
+final class ComponentPreflight
+{
+    public function __construct(
+        private readonly Config $config,
+        private readonly Runtime $runtime,
+        private readonly OsRelease $os,
+    ) {
+    }
+
+    /**
+     * @param array<string, mixed> $definition
+     * @return array<string, mixed>
+     */
+    public function check(array $definition): array
+    {
+        $id = (string) $definition['id'];
+        $preflight = is_array($definition['preflight'] ?? null) ? $definition['preflight'] : [];
+        $minDiskGb = (float) ($preflight['min_disk_gb'] ?? 0);
+        $minRamMb = (int) ($preflight['min_ram_mb'] ?? 0);
+        $minOs = is_array($definition['min_os'] ?? null) ? $definition['min_os'] : [];
+
+        $issues = [];
+        $disk = $this->diskAvailGb('/var');
+        if ($minDiskGb > 0 && $disk < $minDiskGb) {
+            $issues[] = "Need at least {$minDiskGb} GB free on /var (found {$disk} GB).";
+        }
+        $ramMb = $this->memAvailableMb();
+        if ($minRamMb > 0 && $ramMb < $minRamMb) {
+            $issues[] = "Need at least {$minRamMb} MB RAM available (found {$ramMb} MB).";
+        }
+        $required = (string) ($minOs[$this->os->distroKey] ?? '');
+        if ($required !== '' && version_compare($this->os->versionId, $required, '<')) {
+            $issues[] = "Requires {$this->os->distroKey} {$required}+ (this host: {$this->os->versionId}).";
+        }
+        if (!is_array($definition['distros'][$this->os->distroKey] ?? null)) {
+            $issues[] = 'Component is not supported on this OS.';
+        }
+
+        foreach ($this->conflicts($definition) as $conflictId) {
+            if ((new PortOwnership($this->config, $this->runtime, $this->os))->conflictPresent($conflictId)) {
+                $issues[] = "Conflicts with {$conflictId}, which is already present on this host.";
+            }
+        }
+
+        return [
+            'component_id' => $id,
+            'ok' => $issues === [],
+            'issues' => $issues,
+            'disk_gb_var' => $disk,
+            'ram_mb_available' => $ramMb,
+            'distro_key' => $this->os->distroKey,
+        ];
+    }
+
+    /** @param array<string, mixed> $definition @return list<string> */
+    private function conflicts(array $definition): array
+    {
+        if (!is_array($definition['conflicts'] ?? null)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map('strval', $definition['conflicts'])));
+    }
+
+    private function diskAvailGb(string $mount): float
+    {
+        $result = $this->runtime->exec(['/bin/df', '-B1', '-P', $mount]);
+        if (!$result->ok()) {
+            return 0.0;
+        }
+        foreach (explode("\n", trim($result->stdout)) as $i => $line) {
+            if ($i === 0 || trim($line) === '') {
+                continue;
+            }
+            $parts = preg_split('/\s+/', $line);
+            if (!is_array($parts) || count($parts) < 4) {
+                continue;
+            }
+            return round(((int) $parts[3]) / 1_073_741_824, 2);
+        }
+        return 0.0;
+    }
+
+    private function memAvailableMb(): int
+    {
+        if (!$this->runtime->fileExists('/proc/meminfo')) {
+            return 0;
+        }
+        $available = 0;
+        foreach (explode("\n", $this->runtime->readFile('/proc/meminfo')) as $line) {
+            if (str_starts_with($line, 'MemAvailable:')) {
+                $available = (int) preg_replace('/\D/', '', $line);
+                break;
+            }
+        }
+        return (int) round($available / 1024);
+    }
+}

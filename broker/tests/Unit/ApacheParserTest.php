@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker\Tests;
+namespace AzerioidPanel\Broker\Tests;
 
-use LacmpPanel\Broker\Web\ApacheParser;
+use AzerioidPanel\Broker\Web\ApacheParser;
 use PHPUnit\Framework\TestCase;
 
 final class ApacheParserTest extends TestCase
@@ -69,10 +69,10 @@ APACHE;
 <VirtualHost *:443>
     ServerName 157.245.84.199
     SSLEngine on
-    DocumentRoot /usr/local/lib/lacmp-panel/web/public
+    DocumentRoot /usr/local/lib/azerioid-panel/web/public
 </VirtualHost>
 APACHE;
-        $parsed = ApacheParser::parseFile('/etc/apache2/sites-available/lacmp-panel.conf', $contents, []);
+        $parsed = ApacheParser::parseFile('/etc/apache2/sites-available/azerioid-panel.conf', $contents, []);
         $this->assertTrue($parsed['readonly']);
         $this->assertSame('157.245.84.199', $parsed['domain']);
     }

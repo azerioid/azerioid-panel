@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker;
+namespace AzerioidPanel\Broker;
 
-use LacmpPanel\Broker\Web\ManagedVhost;
+use AzerioidPanel\Broker\Web\ManagedVhost;
 
 final class CaddyParser
 {

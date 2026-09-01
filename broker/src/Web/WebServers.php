@@ -1,14 +1,20 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker\Web;
+namespace AzerioidPanel\Broker\Web;
 
-use LacmpPanel\Broker\Config;
+use AzerioidPanel\Broker\Config;
 
 final class WebServers
 {
     public static function for(Config $config): WebServerDriver
     {
-        return $config->stack === 'lamp' ? new ApacheDriver($config) : new CaddyDriver();
+        $driver = $config->siteWebServer !== '' ? $config->siteWebServer : $config->webServer;
+
+        return match ($driver) {
+            'nginx' => new NginxDriver($config),
+            'apache', 'httpd' => new ApacheDriver($config),
+            default => new CaddyDriver(),
+        };
     }
 }

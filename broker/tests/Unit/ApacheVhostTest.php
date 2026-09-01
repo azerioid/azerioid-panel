@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker\Tests;
+namespace AzerioidPanel\Broker\Tests;
 
-use LacmpPanel\Broker\Config;
-use LacmpPanel\Broker\FakeRuntime;
-use LacmpPanel\Broker\Kernel;
+use AzerioidPanel\Broker\Config;
+use AzerioidPanel\Broker\FakeRuntime;
+use AzerioidPanel\Broker\Kernel;
 use PHPUnit\Framework\TestCase;
 
 final class ApacheVhostTest extends TestCase
@@ -92,11 +92,11 @@ final class ApacheVhostTest extends TestCase
     public function test_lists_each_vhost_once_despite_available_and_enabled(): void
     {
         $rt = $this->runtime();
-        $panel = "<VirtualHost *:443>\n    ServerName 157.245.84.199\n    SSLEngine on\n    DocumentRoot /usr/local/lib/lacmp-panel/web/public\n</VirtualHost>\n";
+        $panel = "<VirtualHost *:443>\n    ServerName 157.245.84.199\n    SSLEngine on\n    DocumentRoot /usr/local/lib/azerioid-panel/web/public\n</VirtualHost>\n";
         $ssl = "<VirtualHost *:443>\n    ServerName localhost\n    SSLEngine on\n    DocumentRoot /var/www/html\n</VirtualHost>\n";
         $user = "<VirtualHost *:80>\n    ServerName shop.example.com\n    DocumentRoot /data/www/shop.example.com\n</VirtualHost>\n";
         $disabled = "<VirtualHost *:80>\n    ServerName idle.example.com\n    DocumentRoot /data/www/idle.example.com\n</VirtualHost>\n";
-        foreach (['lacmp-panel' => $panel, 'default-ssl' => $ssl, 'shop.example.com' => $user] as $name => $body) {
+        foreach (['azerioid-panel' => $panel, 'default-ssl' => $ssl, 'shop.example.com' => $user] as $name => $body) {
             $rt->files['/etc/apache2/sites-available/' . $name . '.conf'] = $body;
             $rt->files['/etc/apache2/sites-enabled/' . $name . '.conf'] = $body;
         }

@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker\Tests;
+namespace AzerioidPanel\Broker\Tests;
 
-use LacmpPanel\Broker\PosixRuntime;
+use AzerioidPanel\Broker\PosixRuntime;
 use PHPUnit\Framework\TestCase;
 
 final class PosixRuntimeIoFailureTest extends TestCase

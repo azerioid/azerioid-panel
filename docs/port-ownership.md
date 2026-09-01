@@ -13,7 +13,7 @@ Stack Manager enforces **one web server instance per type** on a host. The panel
 
 ## Special rules
 
-1. **Caddy the package is one instance.** Panel vhost is always a snippet in `/etc/caddy/conf.d/lacmp-panel.conf`, never a second `caddy` process or alternate binary.
+1. **Caddy the package is one instance.** Panel vhost is always a snippet in `/etc/caddy/conf.d/azerioid-panel.conf`, never a second `caddy` process or alternate binary.
 2. **Panel default bind:** `127.0.0.1:3169` (SSH tunnel: `ssh -L 3169:127.0.0.1:3169 host`).
 3. **Public access (optional):** `--access=public` adds HTTPS site block; localhost block remains for tunnel fallback.
 4. **Database ports:** managed DBs (MariaDB, PostgreSQL, MongoDB, Redis) bind `127.0.0.1` by default when installed (P3+). Panel SQLite has no network port.

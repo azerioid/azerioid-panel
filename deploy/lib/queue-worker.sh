@@ -3,19 +3,19 @@
 set -euo pipefail
 
 install_queue_worker() {
-    echo "==> Installing lacmp-panel-queue.service"
-    install -m 0644 "${ROOT}/deploy/systemd/lacmp-panel-queue.service" \
-        /etc/systemd/system/lacmp-panel-queue.service
+    echo "==> Installing azerioid-panel-queue.service"
+    install -m 0644 "${ROOT}/deploy/systemd/azerioid-panel-queue.service" \
+        /etc/systemd/system/azerioid-panel-queue.service
 
     sed -i \
         -e "s|@PREFIX@|${PREFIX}|g" \
         -e "s|@WEB_USER@|${WEB_USER}|g" \
         -e "s|@PHP_BIN@|${PHP_BIN}|g" \
-        /etc/systemd/system/lacmp-panel-queue.service
+        /etc/systemd/system/azerioid-panel-queue.service
 
     systemctl daemon-reload
-    systemctl enable --now lacmp-panel-queue.service
-    systemctl restart lacmp-panel-queue.service
+    systemctl enable --now azerioid-panel-queue.service
+    systemctl restart azerioid-panel-queue.service
 }
 
 dispatch_ping_job() {

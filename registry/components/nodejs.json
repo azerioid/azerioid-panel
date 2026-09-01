@@ -2,25 +2,29 @@
   "id": "nodejs",
   "display_name": "Node.js",
   "category": "runtime",
-  "description": "Node.js runtime (v1: install only, no process manager)",
+  "description": "Node.js runtime (install only — no process manager in v1)",
   "managed": true,
   "system": false,
+  "installable": true,
   "min_os": { "ubuntu": "24.04", "debian": "12", "el": "9" },
   "ports": [],
   "conflicts": [],
+  "install_options": {
+    "node_major": { "default": "22", "choices": ["20", "22", "24"] }
+  },
   "distros": {
     "ubuntu": {
-      "packages": ["nodejs", "npm"],
+      "packages": ["nodejs"],
       "unit_name": "",
       "detect": { "packages": ["nodejs"], "unit": "", "command": "node --version" }
     },
     "debian": {
-      "packages": ["nodejs", "npm"],
+      "packages": ["nodejs"],
       "unit_name": "",
       "detect": { "packages": ["nodejs"], "unit": "", "command": "node --version" }
     },
     "el": {
-      "packages": ["nodejs", "npm"],
+      "packages": ["nodejs"],
       "unit_name": "",
       "detect": { "packages": ["nodejs"], "unit": "", "command": "node --version" }
     }

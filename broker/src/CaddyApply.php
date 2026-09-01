@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker;
+namespace AzerioidPanel\Broker;
 
 /**
  * Single Caddy apply ladder for the installer (caddy.apply) and vhost add/del.
@@ -11,9 +11,9 @@ namespace LacmpPanel\Broker;
  */
 final class CaddyApply
 {
-    public const DROPIN = '/etc/systemd/system/caddy.service.d/lacmp-panel-reload.conf';
+    public const DROPIN = '/etc/systemd/system/caddy.service.d/azerioid-panel-reload.conf';
 
-    public const ADMIN_MARKER = '/etc/lacmp-panel/caddy-admin-managed';
+    public const ADMIN_MARKER = '/etc/azerioid-panel/caddy-admin-managed';
 
     public const IPV4_ADMIN = '127.0.0.1:2019';
 
@@ -129,7 +129,7 @@ final class CaddyApply
 
         $patched = preg_replace(
             '/^(\s*admin\s+)(?:off|disabled)(\s*)$/m',
-            '${1}' . self::IPV4_ADMIN . '${2}' . "\n    # lacmp-panel: IPv4 admin so reload does not dial [::1]",
+            '${1}' . self::IPV4_ADMIN . '${2}' . "\n    # azerioid-panel: IPv4 admin so reload does not dial [::1]",
             $text,
             1,
             $count

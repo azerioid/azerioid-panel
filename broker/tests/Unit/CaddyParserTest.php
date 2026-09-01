@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker\Tests;
+namespace AzerioidPanel\Broker\Tests;
 
-use LacmpPanel\Broker\CaddyParser;
+use AzerioidPanel\Broker\CaddyParser;
 use PHPUnit\Framework\TestCase;
 
 final class CaddyParserTest extends TestCase
@@ -45,11 +45,11 @@ final class CaddyParserTest extends TestCase
         $contents = <<<'CADDY'
 http://127.0.0.1:3169 {
     bind 127.0.0.1
-    root * /usr/local/lib/lacmp-panel/web/public
-    php_fastcgi unix//run/php/lacmp-panel.sock
+    root * /usr/local/lib/azerioid-panel/web/public
+    php_fastcgi unix//run/php/azerioid-panel.sock
 }
 CADDY;
-        $parsed = CaddyParser::parseFile('/etc/caddy/conf.d/lacmp-panel.conf', $contents, ['projob.az']);
+        $parsed = CaddyParser::parseFile('/etc/caddy/conf.d/azerioid-panel.conf', $contents, ['projob.az']);
         $this->assertTrue($parsed['readonly']);
         $this->assertSame('php', $parsed['type']);
     }

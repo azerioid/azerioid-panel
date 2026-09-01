@@ -13,8 +13,8 @@ final class AuthFailLog
         if (! filter_var($ip, FILTER_VALIDATE_IP)) {
             $ip = '0.0.0.0';
         }
-        $line = gmdate('Y-m-d\TH:i:s\Z') . ' LACMP_PANEL_AUTH_FAIL ip=' . $ip . PHP_EOL;
-        foreach (['/var/log/lacmp-panel/auth-fail.log', storage_path('logs/auth-fail.log')] as $path) {
+        $line = gmdate('Y-m-d\TH:i:s\Z') . ' AZERIOID_PANEL_AUTH_FAIL ip=' . $ip . PHP_EOL;
+        foreach (['/var/log/azerioid-panel/auth-fail.log', storage_path('logs/auth-fail.log')] as $path) {
             $dir = dirname($path);
             if (! is_dir($dir)) {
                 continue;

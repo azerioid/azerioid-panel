@@ -8,7 +8,7 @@ use Illuminate\Console\Command;
 
 class SampleMetrics extends Command
 {
-    protected $signature = 'lacmp:sample-metrics';
+    protected $signature = 'azerioid:sample-metrics';
 
     protected $description = 'Record a rolling metrics sample via the broker';
 

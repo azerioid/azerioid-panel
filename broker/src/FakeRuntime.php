@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker;
+namespace AzerioidPanel\Broker;
 
 /**
  * In-memory runtime for unit tests. Never touches the real machine.
@@ -52,13 +52,13 @@ final class FakeRuntime implements Runtime
         $this->dirs['/etc/php/8.4'] = true;
         $this->dirs['/var'] = true;
         $this->dirs['/var/log/caddy'] = true;
-        $this->dirs['/var/log/lacmp-panel'] = true;
+        $this->dirs['/var/log/azerioid-panel'] = true;
         $this->dirs['/var/lib'] = true;
-        $this->dirs['/var/lib/lacmp-panel'] = true;
-        $this->dirs['/var/lib/lacmp-panel/staging'] = true;
+        $this->dirs['/var/lib/azerioid-panel'] = true;
+        $this->dirs['/var/lib/azerioid-panel/staging'] = true;
         $this->dirs['/usr/local/lib'] = true;
-        $this->dirs['/usr/local/lib/lacmp-panel'] = true;
-        $this->dirs['/usr/local/lib/lacmp-panel/web'] = true;
+        $this->dirs['/usr/local/lib/azerioid-panel'] = true;
+        $this->dirs['/usr/local/lib/azerioid-panel/web'] = true;
         $this->dirs['/etc/systemd'] = true;
         $this->dirs['/etc/systemd/system'] = true;
     }

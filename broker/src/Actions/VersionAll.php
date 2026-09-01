@@ -1,16 +1,16 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker\Actions;
+namespace AzerioidPanel\Broker\Actions;
 
-use LacmpPanel\Broker\Config;
-use LacmpPanel\Broker\Runtime;
+use AzerioidPanel\Broker\Config;
+use AzerioidPanel\Broker\Runtime;
 
 final class VersionAll
 {
     public function handle(string $action, array $args, array $input, Runtime $runtime, Config $config): array
     {
-        $web = \LacmpPanel\Broker\Web\WebServers::for($config)->version($runtime, $config);
+        $web = \AzerioidPanel\Broker\Web\WebServers::for($config)->version($runtime, $config);
         return [
             'web' => $web,
             'caddy' => ['version' => $web['version'], 'raw' => $web['raw']],

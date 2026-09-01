@@ -1,6 +1,6 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "lacmp/panel",
+    "name": "azerioid/panel",
     "type": "project",
     "description": "The skeleton application for the Laravel framework.",
     "keywords": ["laravel", "framework"],
@@ -27,8 +27,8 @@
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/",
-            "LacmpPanel\\Broker\\": [
-                "lib/lacmp-broker/",
+            "AzerioidPanel\\Broker\\": [
+                "lib/azerioid-broker/",
                 "../broker/src/"
             ]
         }
@@ -36,7 +36,7 @@
     "autoload-dev": {
         "psr-4": {
             "Tests\\": "tests/",
-            "LacmpPanel\\Broker\\Tests\\": "../broker/tests/Unit/"
+            "AzerioidPanel\\Broker\\Tests\\": "../broker/tests/Unit/"
         }
     },
     "scripts": {

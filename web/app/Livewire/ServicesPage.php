@@ -4,7 +4,7 @@ namespace App\Livewire;
 
 use App\Services\Broker\BrokerCallException;
 use App\Services\Broker\BrokerClient;
-use LacmpPanel\Broker\Validator;
+use AzerioidPanel\Broker\Validator;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;

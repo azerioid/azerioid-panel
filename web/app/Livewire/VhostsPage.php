@@ -4,7 +4,7 @@ namespace App\Livewire;
 
 use App\Services\Broker\BrokerCallException;
 use App\Services\Broker\BrokerClient;
-use LacmpPanel\Broker\Validator;
+use AzerioidPanel\Broker\Validator;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -35,7 +35,7 @@ class VhostsPage extends Component
         if ($this->root === '' && $this->domain !== '') {
             try {
                 $d = Validator::domain($this->domain);
-                $this->root = rtrim((string) config('lacmp.www_root'), '/') . '/' . $d;
+                $this->root = rtrim((string) config('azerioid.www_root'), '/') . '/' . $d;
             } catch (\Throwable) {
             }
         }
@@ -46,7 +46,7 @@ class VhostsPage extends Component
         $this->error = null;
         try {
             $domain = Validator::domain($this->domain);
-            $root = Validator::webRoot($this->root, (string) config('lacmp.www_root'), new \LacmpPanel\Broker\FakeRuntime());
+            $root = Validator::webRoot($this->root, (string) config('azerioid.www_root'), new \AzerioidPanel\Broker\FakeRuntime());
             $type = Validator::vhostType($this->type);
             $args = [$domain, $root, $type];
             if ($type === 'php') {

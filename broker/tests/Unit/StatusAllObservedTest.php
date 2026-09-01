@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker\Tests;
+namespace AzerioidPanel\Broker\Tests;
 
-use LacmpPanel\Broker\Config;
-use LacmpPanel\Broker\FakeRuntime;
-use LacmpPanel\Broker\Kernel;
+use AzerioidPanel\Broker\Config;
+use AzerioidPanel\Broker\FakeRuntime;
+use AzerioidPanel\Broker\Kernel;
 use PHPUnit\Framework\TestCase;
 
 final class StatusAllObservedTest extends TestCase
@@ -89,7 +89,7 @@ final class StatusAllObservedTest extends TestCase
         $rt = new FakeRuntime();
         $rt->files['/etc/caddy/conf.d/app.example.conf'] = "app.example {\n    reverse_proxy 127.0.0.1:9001\n}\n";
         $rt->files['/etc/caddy/conf.d/default.conf'] = "http:// {\n    reverse_proxy 127.0.0.1:9002\n}\n";
-        $rt->files['/etc/caddy/conf.d/lacmp-panel.conf'] = "127.0.0.1:3169 {\n    reverse_proxy 127.0.0.1:9003\n}\n";
+        $rt->files['/etc/caddy/conf.d/azerioid-panel.conf'] = "127.0.0.1:3169 {\n    reverse_proxy 127.0.0.1:9003\n}\n";
         $rt->files['/proc/net/tcp'] = "  sl  local_address rem_address   st\n   0: 0100007F:2329 00000000:0000 0A\n";
 
         [$code, $json] = $this->capture(new Kernel(new Config(), $rt), ['broker', 'status.all']);
@@ -117,10 +117,10 @@ final class StatusAllObservedTest extends TestCase
     public function test_config_observed_unit_and_bind(): void
     {
         $rt = new FakeRuntime();
-        $rt->files['/etc/lacmp-panel/broker.json'] = json_encode([
+        $rt->files['/etc/azerioid-panel/broker.json'] = json_encode([
             'observed_services' => ['worker-unit', '127.0.0.1:6379', ''],
         ], JSON_THROW_ON_ERROR);
-        $cfg = Config::load('/etc/lacmp-panel/broker.json', $rt);
+        $cfg = Config::load('/etc/azerioid-panel/broker.json', $rt);
         $this->assertSame(['worker-unit', '127.0.0.1:6379'], $cfg->observedServices);
 
         $rt->script($this->loadStateCmd('worker-unit'), 0, "LoadState=loaded\n");
@@ -149,7 +149,7 @@ final class StatusAllObservedTest extends TestCase
         $this->assertFalse($json['ok']);
         $this->assertStringContainsString('allowlist', $json['error']);
         $this->assertSame([], $rt->execLog);
-        $audit = $rt->files['/var/log/lacmp-panel/broker-audit.log'] ?? '';
+        $audit = $rt->files['/var/log/azerioid-panel/broker-audit.log'] ?? '';
         $this->assertStringContainsString('service.start', $audit);
         $this->assertStringContainsString('redis-server', $audit);
     }

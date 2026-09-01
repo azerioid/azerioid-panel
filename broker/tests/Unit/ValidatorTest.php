@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker\Tests;
+namespace AzerioidPanel\Broker\Tests;
 
-use LacmpPanel\Broker\BrokerException;
-use LacmpPanel\Broker\FakeRuntime;
-use LacmpPanel\Broker\Validator;
+use AzerioidPanel\Broker\BrokerException;
+use AzerioidPanel\Broker\FakeRuntime;
+use AzerioidPanel\Broker\Validator;
 use PHPUnit\Framework\TestCase;
 
 final class ValidatorTest extends TestCase
@@ -155,7 +155,7 @@ final class ValidatorTest extends TestCase
     public function test_typed_confirm_and_object_key(): void
     {
         $this->assertSame('REBOOT', Validator::typedConfirm('REBOOT', 'REBOOT'));
-        $this->assertSame('lacmp/db/all/x.bin', Validator::objectKey('lacmp/db/all/x.bin'));
+        $this->assertSame('azerioid/db/all/x.bin', Validator::objectKey('azerioid/db/all/x.bin'));
         $this->expectException(BrokerException::class);
         Validator::objectKey('../etc/passwd');
     }

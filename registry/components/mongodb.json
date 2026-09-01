@@ -2,9 +2,10 @@
   "id": "mongodb",
   "display_name": "MongoDB",
   "category": "database",
-  "description": "MongoDB document database",
+  "description": "MongoDB document database (mongodb-org; SSPL license)",
   "managed": true,
   "system": false,
+  "installable": true,
   "min_os": { "ubuntu": "24.04", "debian": "12", "el": "9" },
   "ports": [
     { "port": 27017, "bind": "127.0.0.1", "owner": "mongod", "protocol": "tcp" }

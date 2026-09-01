@@ -1,12 +1,12 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker\Tests;
+namespace AzerioidPanel\Broker\Tests;
 
-use LacmpPanel\Broker\Config;
-use LacmpPanel\Broker\FakeRuntime;
-use LacmpPanel\Broker\Kernel;
-use LacmpPanel\Broker\PosixRuntime;
+use AzerioidPanel\Broker\Config;
+use AzerioidPanel\Broker\FakeRuntime;
+use AzerioidPanel\Broker\Kernel;
+use AzerioidPanel\Broker\PosixRuntime;
 use PDOException;
 use PHPUnit\Framework\TestCase;
 
@@ -17,7 +17,10 @@ final class DbAddTest extends TestCase
         $rt = new FakeRuntime();
         $rt->dbExecFailAt = 2;
         ob_start();
-        $code = (new Kernel(new Config(), $rt))->run(
+        $cfg = new Config();
+        $cfg->databaseEngine = 'mariadb';
+        $cfg->mysqlPassword = 'abcdefghijklmnopqrst';
+        $code = (new Kernel($cfg, $rt))->run(
             ['broker', 'db.add', 'shopdb', 'shopuser'],
             ['password' => 'abcdefghijklmnopqrst']
         );
@@ -48,7 +51,10 @@ final class DbAddTest extends TestCase
         $rt = new FakeRuntime();
         $rt->dbExecFailAt = 1;
         ob_start();
-        $code = (new Kernel(new Config(), $rt))->run(
+        $cfg = new Config();
+        $cfg->databaseEngine = 'mariadb';
+        $cfg->mysqlPassword = 'abcdefghijklmnopqrst';
+        $code = (new Kernel($cfg, $rt))->run(
             ['broker', 'db.add', 'shopdb', 'shopuser'],
             ['password' => 'abcdefghijklmnopqrst']
         );

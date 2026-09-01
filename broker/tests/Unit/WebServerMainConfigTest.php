@@ -1,13 +1,13 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker\Tests;
+namespace AzerioidPanel\Broker\Tests;
 
-use LacmpPanel\Broker\BrokerException;
-use LacmpPanel\Broker\Config;
-use LacmpPanel\Broker\FakeRuntime;
-use LacmpPanel\Broker\Web\ApacheDriver;
-use LacmpPanel\Broker\Web\CaddyDriver;
+use AzerioidPanel\Broker\BrokerException;
+use AzerioidPanel\Broker\Config;
+use AzerioidPanel\Broker\FakeRuntime;
+use AzerioidPanel\Broker\Web\ApacheDriver;
+use AzerioidPanel\Broker\Web\CaddyDriver;
 use PHPUnit\Framework\TestCase;
 
 final class WebServerMainConfigTest extends TestCase
@@ -40,10 +40,10 @@ final class WebServerMainConfigTest extends TestCase
     public function test_load_coerces_spaced_caddyfile_typo(): void
     {
         $rt = new FakeRuntime();
-        $rt->files['/etc/lacmp-panel/broker.json'] = json_encode([
+        $rt->files['/etc/azerioid-panel/broker.json'] = json_encode([
             'paths' => ['caddyfile' => '/etc/caddy/Caddy file'],
         ], JSON_THROW_ON_ERROR);
-        $cfg = Config::load('/etc/lacmp-panel/broker.json', $rt);
+        $cfg = Config::load('/etc/azerioid-panel/broker.json', $rt);
         $this->assertSame('/etc/caddy/Caddyfile', $cfg->caddyfile);
     }
 

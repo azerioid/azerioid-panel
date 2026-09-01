@@ -1,27 +1,24 @@
 <?php
 declare(strict_types=1);
 
-namespace LacmpPanel\Broker\Actions;
+namespace AzerioidPanel\Broker\Actions;
 
-use LacmpPanel\Broker\Config;
-use LacmpPanel\Broker\Runtime;
-use LacmpPanel\Broker\Validator;
+use AzerioidPanel\Broker\Config;
+use AzerioidPanel\Broker\Database\DatabaseManager;
+use AzerioidPanel\Broker\Runtime;
+use AzerioidPanel\Broker\Validator;
 
 final class DbResetpw
 {
     public function handle(string $action, array $args, array $input, Runtime $runtime, Config $config): array
     {
+        $manager = new DatabaseManager($config, $runtime);
+        $engine = $manager->resolveEngine((string) ($input['engine'] ?? ''));
         $user = Validator::userName($args[0] ?? ($input['user'] ?? ''));
         $password = Validator::password((string) ($input['password'] ?? ''));
 
-        foreach (['localhost', '127.0.0.1'] as $host) {
-            $runtime->dbExec(
-                'ALTER USER `' . DbAdd::ident($user) . '`@`' . DbAdd::ident($host) . '` IDENTIFIED BY ?',
-                [$password]
-            );
-        }
-        $runtime->dbExec('FLUSH PRIVILEGES');
+        $result = $manager->driver($engine)->resetPassword($user, $password);
 
-        return ['user' => $user, 'reset' => true];
+        return $result + ['engine' => $engine];
     }
 }

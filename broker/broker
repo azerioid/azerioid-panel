@@ -12,10 +12,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SELF="${ROOT}/broker"
 # Prefer Caddy's data dir when it exists (LACMP). LAMP has no /var/lib/caddy.
-BROKER_HOME=/var/lib/lacmp-panel
+BROKER_HOME=/var/lib/azerioid-panel
 [[ -d /var/lib/caddy ]] && BROKER_HOME=/var/lib/caddy
 
-PHP_BIN="${LACMP_BROKER_PHP:-}"
+PHP_BIN="${AZERIOID_BROKER_PHP:-${LACMP_BROKER_PHP:-}}"
 if [[ -z "${PHP_BIN}" ]]; then
     PHP_BIN="$(command -v php || true)"
 fi
@@ -23,15 +23,15 @@ if [[ -z "${PHP_BIN}" || ! -x "${PHP_BIN}" ]]; then
     PHP_BIN=/usr/bin/php
 fi
 
-if [[ -z "${LACMP_BROKER_UNSANDBOXED:-}" ]] \
+if [[ -z "${AZERIOID_BROKER_UNSANDBOXED:-${LACMP_BROKER_UNSANDBOXED:-}}" ]] \
     && [[ -d /run/systemd/system ]] \
     && command -v systemd-run >/dev/null 2>&1; then
-    export LACMP_BROKER_UNSANDBOXED=1
+    export AZERIOID_BROKER_UNSANDBOXED=1
     exec systemd-run --quiet --wait --pipe --collect \
         --working-directory="${ROOT}" \
-        -E LACMP_BROKER_UNSANDBOXED=1 \
-        -E LACMP_BROKER_PHP="${PHP_BIN}" \
-        -E LACMP_PANEL_CONFIG="${LACMP_PANEL_CONFIG:-/etc/lacmp-panel/broker.json}" \
+        -E AZERIOID_BROKER_UNSANDBOXED=1 \
+        -E AZERIOID_BROKER_PHP="${PHP_BIN}" \
+        -E AZERIOID_PANEL_CONFIG="${AZERIOID_PANEL_CONFIG:-${LACMP_PANEL_CONFIG:-/etc/azerioid-panel/broker.json}}" \
         -E PATH="${PATH:-/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}" \
         -E HOME="${BROKER_HOME}" \
         -E XDG_CONFIG_HOME="${BROKER_HOME}/.config" \
