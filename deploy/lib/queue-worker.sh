@@ -20,6 +20,5 @@ install_queue_worker() {
 
 dispatch_ping_job() {
     echo "==> Dispatching PingJob to verify queue worker"
-    run_as_web "${PHP_BIN} artisan tinker --execute=\"App\\\\Jobs\\\\PingJob::dispatch();\"" \
-        >/dev/null 2>&1 || true
+    run_as_web "${PHP_BIN} artisan queue:dispatch-ping" >/dev/null 2>&1 || true
 }

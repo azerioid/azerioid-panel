@@ -47,6 +47,21 @@
         @endif
     </section>
 
+    <section class="panel p-5 space-y-3">
+        <h2 class="text-sm font-medium">Panel runtime</h2>
+        @if ($panelRuntime !== [])
+            <dl class="grid gap-2 font-mono text-xs text-zinc-400 md:grid-cols-2">
+                <div><dt class="text-zinc-600">PHP version</dt><dd>{{ $panelRuntime['php_version'] ?? '—' }}</dd></div>
+                <div><dt class="text-zinc-600">FPM pool</dt><dd>{{ $panelRuntime['fpm_pool'] ?? '—' }}</dd></div>
+                <div><dt class="text-zinc-600">FPM socket</dt><dd>{{ $panelRuntime['fpm_socket'] ?? '—' }}</dd></div>
+                <div><dt class="text-zinc-600">Queue worker</dt><dd>{{ ($panelRuntime['queue_active'] ?? false) ? 'active' : 'inactive' }} ({{ $panelRuntime['queue_unit'] ?? 'lacmp-panel-queue.service' }})</dd></div>
+            </dl>
+            <p class="text-sm text-zinc-500">System component — cannot be removed while the panel is running.</p>
+        @else
+            <p class="text-sm text-zinc-400">Panel runtime details unavailable (broker panel.runtime).</p>
+        @endif
+    </section>
+
     <form wire:submit="savePanel" class="panel grid gap-4 p-5">
         <h2 class="text-sm font-medium">Session &amp; access</h2>
         <label class="text-xs uppercase tracking-wide text-zinc-500">Idle timeout (minutes)
@@ -61,25 +76,6 @@
         @error('ipAllowlist') <p class="text-sm text-bad">{{ $message }}</p> @enderror
         <div><button class="btn-primary" type="submit">Save</button></div>
     </form>
-
-    @if ($panelRuntime !== [])
-        <section class="panel p-5 space-y-3">
-            <h2 class="text-sm font-medium">Panel runtime</h2>
-            <p class="text-sm text-zinc-400">System component — pinned PHP for the panel. Non-removable while the panel runs.</p>
-            <dl class="grid gap-2 font-mono text-xs text-zinc-400 md:grid-cols-2">
-                <div><dt class="text-zinc-500">PHP version</dt><dd class="text-zinc-200">{{ $panelRuntime['php_version'] ?? '—' }}</dd></div>
-                <div><dt class="text-zinc-500">FPM pool</dt><dd class="text-zinc-200">{{ $panelRuntime['fpm_pool'] ?? '—' }}</dd></div>
-                <div><dt class="text-zinc-500">FPM socket</dt><dd class="text-zinc-200">{{ $panelRuntime['fpm_socket'] ?? '—' }}</dd></div>
-                <div><dt class="text-zinc-500">FPM unit</dt><dd class="text-zinc-200">{{ $panelRuntime['fpm_unit'] ?? '—' }}</dd></div>
-                <div><dt class="text-zinc-500">Queue worker</dt>
-                    <dd class="{{ ($panelRuntime['queue_worker']['running'] ?? false) ? 'text-good' : 'text-bad' }}">
-                        {{ ($panelRuntime['queue_worker']['active_state'] ?? 'unknown') }}
-                    </dd>
-                </div>
-                <div><dt class="text-zinc-500">Web user</dt><dd class="text-zinc-200">{{ $panelRuntime['web_user'] ?? '—' }}</dd></div>
-            </dl>
-        </section>
-    @endif
 
     <section class="panel p-5 space-y-2">
         <h2 class="text-sm font-medium">Integrations</h2>

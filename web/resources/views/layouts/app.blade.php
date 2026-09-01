@@ -29,10 +29,10 @@
                         ['databases', 'Databases', '/databases'],
                         ['backups', 'Backups', '/backups'],
                         ['services', 'Services', '/services'],
+                        ['components', 'Components', '/components'],
                         ['logs', 'Logs', '/logs'],
                         ['security', 'Security', '/security'],
                         ['audit', 'Audit', '/audit'],
-                        ['components', 'Components', '/components'],
                         ['settings', 'Settings', '/settings'],
                     ];
                 @endphp
@@ -62,11 +62,11 @@
                 <a href="/vhosts" class="shrink-0 text-zinc-400">Vhosts</a>
                 <a href="/databases" class="shrink-0 text-zinc-400">DB</a>
                 <a href="/backups" class="shrink-0 text-zinc-400">Backups</a>
+                <a href="/components" class="shrink-0 text-zinc-400">Components</a>
                 <a href="/services" class="shrink-0 text-zinc-400">Services</a>
                 <a href="/logs" class="shrink-0 text-zinc-400">Logs</a>
                 <a href="/security" class="shrink-0 text-zinc-400">Security</a>
                 <a href="/audit" class="shrink-0 text-zinc-400">Audit</a>
-                <a href="/components" class="shrink-0 text-zinc-400">Components</a>
                 <a href="/settings" class="shrink-0 text-zinc-400">Settings</a>
             </nav>
             </header>

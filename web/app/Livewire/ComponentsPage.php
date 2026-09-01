@@ -11,44 +11,41 @@ use Livewire\Component;
 #[Title('Components · Stack Manager')]
 class ComponentsPage extends Component
 {
-  /** @var list<array<string, mixed>> */
-  public array $systemCards = [];
+    public array $systemComponents = [];
 
-  public function mount(BrokerClient $broker): void
-  {
-    $runtime = $broker->call('panel.runtime');
-    if ($runtime->ok) {
-      $data = $runtime->data ?? [];
-      $this->systemCards = [
-        [
-          'id' => 'caddy',
-          'display_name' => 'Caddy',
-          'category' => 'web',
-          'system' => true,
-          'managed' => true,
-          'description' => 'Panel web server (single instance).',
-          'status' => $data['fpm_status']['active_state'] ?? 'unknown',
-        ],
-        [
-          'id' => 'php-8.4',
-          'display_name' => 'PHP '.($data['php_version'] ?? '8.4').' (panel runtime)',
-          'category' => 'runtime',
-          'system' => true,
-          'managed' => true,
-          'description' => 'Pinned panel PHP-FPM pool — non-removable.',
-          'status' => $data['fpm_status']['active_state'] ?? 'unknown',
-          'socket' => $data['fpm_socket'] ?? '',
-          'pool' => $data['fpm_pool'] ?? '',
-        ],
-      ];
+    public function mount(BrokerClient $broker): void
+    {
+        $runtime = $broker->call('panel.runtime');
+        if ($runtime->ok) {
+            $data = $runtime->data;
+            $this->systemComponents = [
+                [
+                    'id' => 'caddy',
+                    'display_name' => 'Caddy',
+                    'category' => 'web',
+                    'system' => true,
+                    'status' => 'active',
+                    'description' => 'Panel web server (system component)',
+                ],
+                [
+                    'id' => 'php-8.4',
+                    'display_name' => 'PHP '.($data['php_version'] ?? '8.4').' (panel runtime)',
+                    'category' => 'php',
+                    'system' => true,
+                    'status' => ($data['queue_active'] ?? false) ? 'active' : 'unknown',
+                    'description' => 'Pinned panel FPM pool at '.($data['fpm_socket'] ?? '/run/php/lacmp-panel.sock'),
+                    'fpm_socket' => $data['fpm_socket'] ?? null,
+                    'fpm_pool' => $data['fpm_pool'] ?? null,
+                ],
+            ];
+        }
     }
-  }
 
-  public function render()
-  {
-    return view('livewire.components')->layoutData([
-      'heading' => 'Components',
-      'sub' => 'System runtime (read-only stub — install in P3+)',
-    ]);
-  }
+    public function render()
+    {
+        return view('livewire.components')->layoutData([
+            'heading' => 'Components',
+            'sub' => 'System runtime (read-only) · managed installs in P3',
+        ]);
+    }
 }

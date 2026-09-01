@@ -119,8 +119,8 @@ setup_repos
 bootstrap_packages
 apply_selinux
 install_broker
-configure_panel_db
 install_panel_app
+configure_panel_db
 configure_panel_fpm
 configure_panel_caddy
 install_queue_worker

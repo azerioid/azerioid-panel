@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Stack Manager uninstall — reverses bootstrap install only.
-# Never touches /data/www or user data.
+# Reverse Stack Manager bootstrap. Never touches /data/www or user site data.
 set -euo pipefail
 
 if [[ ${EUID} -ne 0 ]]; then
@@ -11,97 +10,94 @@ fi
 PREFIX="${PREFIX:-/usr/local/lib/lacmp-panel}"
 PANEL_PHP_VERSION="${PANEL_PHP_VERSION:-8.4}"
 DROP_DB=0
-REMOVE_BOOTSTRAP_PKGS=0
+REMOVE_BOOTSTRAP=0
 
 usage() {
     cat <<'EOF'
-Usage: uninstall.sh [--drop-db] [--remove-bootstrap-pkgs]
+Usage: uninstall.sh [--drop-db] [--remove-bootstrap]
 
-  --drop-db                 Remove SQLite panel database
-  --remove-bootstrap-pkgs   Remove Caddy/PHP if bootstrap.json says we installed them
+  --drop-db            Remove panel SQLite and /etc/lacmp-panel secrets
+  --remove-bootstrap   Remove Caddy/PHP only if bootstrap.json says installer added them
 EOF
 }
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --drop-db) DROP_DB=1; shift ;;
-        --remove-bootstrap-pkgs) REMOVE_BOOTSTRAP_PKGS=1; shift ;;
+        --remove-bootstrap) REMOVE_BOOTSTRAP=1; shift ;;
         -h|--help) usage; exit 0 ;;
         *) echo "Unknown argument: $1" >&2; usage >&2; exit 2 ;;
     esac
 done
 
-WEB_USER=""
-if [[ -f /etc/lacmp-panel/runtime.json ]]; then
-    WEB_USER="$(python3 -c 'import json; print(json.load(open("/etc/lacmp-panel/runtime.json")).get("web_user",""))' 2>/dev/null || true)"
-fi
-[[ -n "${WEB_USER}" ]] || WEB_USER=caddy
+WEB_USER=caddy
+id -u caddy >/dev/null 2>&1 || WEB_USER=www-data
+id -u "${WEB_USER}" >/dev/null 2>&1 || WEB_USER=apache
 
-echo "==> Stopping queue worker"
-systemctl stop lacmp-panel-queue 2>/dev/null || true
-systemctl disable lacmp-panel-queue 2>/dev/null || true
+systemctl stop lacmp-panel-queue.service 2>/dev/null || true
+systemctl disable lacmp-panel-queue.service 2>/dev/null || true
 rm -f /etc/systemd/system/lacmp-panel-queue.service
 systemctl daemon-reload
 
-echo "==> Removing panel artifacts"
 rm -f /etc/sudoers.d/lacmp-panel
+visudo -c >/dev/null 2>&1 || echo "Warning: visudo -c failed after removing panel sudoers." >&2
 rm -f /etc/cron.d/lacmp-panel
-rm -f /etc/caddy/conf.d/lacmp-panel.conf
+
 rm -f /etc/fail2ban/filter.d/lacmp-panel.conf /etc/fail2ban/jail.d/lacmp-panel.conf
+systemctl reload fail2ban 2>/dev/null || true
+
 rm -f /etc/tmpfiles.d/lacmp-panel.conf
+rm -f /etc/lacmp-panel/access.env /etc/lacmp-panel/runtime.json
 
-POOL_DIR=""
-if [[ -d "/etc/php/${PANEL_PHP_VERSION}/fpm/pool.d" ]]; then
-    POOL_DIR="/etc/php/${PANEL_PHP_VERSION}/fpm/pool.d"
-elif [[ -d /etc/php-fpm.d ]]; then
-    POOL_DIR=/etc/php-fpm.d
-fi
-[[ -n "${POOL_DIR}" ]] && rm -f "${POOL_DIR}/lacmp-panel.conf"
-
-if command -v caddy >/dev/null 2>&1; then
+SNIPPET=/etc/caddy/conf.d/lacmp-panel.conf
+if [[ -f "${SNIPPET}" ]]; then
+    rm -f "${SNIPPET}"
     systemctl reload caddy 2>/dev/null || true
 fi
 
-FPM_UNIT="php${PANEL_PHP_VERSION}-fpm"
-systemctl is-active --quiet "${FPM_UNIT}" 2>/dev/null && systemctl restart "${FPM_UNIT}" || true
+POOL=""
+[[ -d "/etc/php/${PANEL_PHP_VERSION}/fpm/pool.d" ]] && POOL="/etc/php/${PANEL_PHP_VERSION}/fpm/pool.d"
+[[ -z "${POOL}" && -d /etc/php-fpm.d ]] && POOL=/etc/php-fpm.d
+rm -f "${POOL}/lacmp-panel.conf" 2>/dev/null || true
 
-if [[ "${DROP_DB}" -eq 1 ]]; then
-    rm -f /var/lib/lacmp-panel/panel.sqlite /var/lib/lacmp-panel/panel.sqlite-wal /var/lib/lacmp-panel/panel.sqlite-shm
-fi
+UNIT="php${PANEL_PHP_VERSION}-fpm"
+systemctl cat php-fpm.service >/dev/null 2>&1 && UNIT=php-fpm
+rm -f "/etc/systemd/system/${UNIT}.service.d/lacmp-panel.conf" 2>/dev/null || true
+systemctl daemon-reload
+systemctl restart "${UNIT}" 2>/dev/null || true
 
-if [[ -f /etc/lacmp-panel/web.env ]]; then
+if [[ -f "${PREFIX}/web/.env" ]]; then
     install -d -m 0750 /etc/lacmp-panel
-    cp -a "${PREFIX}/web/.env" /etc/lacmp-panel/web.env 2>/dev/null || true
+    cp -a "${PREFIX}/web/.env" /etc/lacmp-panel/web.env
+    chmod 0640 /etc/lacmp-panel/web.env
 fi
 
 rm -rf "${PREFIX}"
-rm -rf /var/log/lacmp-panel
 
-if [[ "${REMOVE_BOOTSTRAP_PKGS}" -eq 1 && -f /etc/lacmp-panel/bootstrap.json ]]; then
-    installed_caddy="$(python3 -c 'import json; print(json.load(open("/etc/lacmp-panel/bootstrap.json")).get("installed_caddy",0))' 2>/dev/null || echo 0)"
-    installed_php="$(python3 -c 'import json; print(json.load(open("/etc/lacmp-panel/bootstrap.json")).get("installed_php",0))' 2>/dev/null || echo 0)"
-    if [[ "${installed_caddy}" == "1" ]]; then
-        echo "==> Removing bootstrap-installed Caddy"
-        if command -v apt-get >/dev/null 2>&1; then
-            apt-get -y remove --purge caddy 2>/dev/null || true
-        elif command -v dnf >/dev/null 2>&1; then
-            dnf -y remove caddy 2>/dev/null || true
-        fi
-    fi
-    if [[ "${installed_php}" == "1" ]]; then
-        echo "==> Removing bootstrap-installed PHP ${PANEL_PHP_VERSION}"
-        if command -v apt-get >/dev/null 2>&1; then
-            apt-get -y remove --purge "php${PANEL_PHP_VERSION}-fpm" "php${PANEL_PHP_VERSION}-cli" 2>/dev/null || true
-        elif command -v dnf >/dev/null 2>&1; then
-            dnf -y remove php-fpm php-cli 2>/dev/null || dnf -y remove php84-php-fpm php84-php-cli 2>/dev/null || true
-        fi
-    fi
+if [[ "${DROP_DB}" -eq 1 ]]; then
+    rm -f /var/lib/lacmp-panel/panel.sqlite /var/lib/lacmp-panel/panel.sqlite-wal /var/lib/lacmp-panel/panel.sqlite-shm
+    rm -rf /var/lib/lacmp-panel/staging
+    rm -f /etc/lacmp-panel/broker.json /etc/lacmp-panel/web.env /etc/lacmp-panel/bootstrap.json
+    rmdir /etc/lacmp-panel 2>/dev/null || true
 fi
 
-rm -f /etc/lacmp-panel/broker.json /etc/lacmp-panel/runtime.json /etc/lacmp-panel/access.env /etc/lacmp-panel/bootstrap.json
-
-if command -v visudo >/dev/null 2>&1; then
-    visudo -c >/dev/null 2>&1 || echo "Warning: visudo -c failed after uninstall." >&2
+BOOTSTRAP=/etc/lacmp-panel/bootstrap.json
+if [[ "${REMOVE_BOOTSTRAP}" -eq 1 && -f "${BOOTSTRAP}" ]]; then
+  if python3 - "${BOOTSTRAP}" <<'PY'
+import json, pathlib, sys
+data = json.loads(pathlib.Path(sys.argv[1]).read_text())
+sys.exit(0 if data.get("caddy") or data.get("php") else 1)
+PY
+  then
+    echo "==> Removing bootstrap-installed Caddy/PHP (per bootstrap.json)"
+    if command -v apt-get >/dev/null 2>&1; then
+      apt-get -y remove --purge caddy "php${PANEL_PHP_VERSION}-fpm" "php${PANEL_PHP_VERSION}-cli" 2>/dev/null || true
+    elif command -v dnf >/dev/null 2>&1; then
+      dnf -y remove caddy php-fpm php-cli 2>/dev/null || true
+    fi
+    rm -f "${BOOTSTRAP}"
+  fi
 fi
 
-echo "Stack Manager uninstalled. User sites under /data/www were not touched."
+echo "Stack Manager panel artifacts removed."
+echo "  /data/www and user databases were not modified."

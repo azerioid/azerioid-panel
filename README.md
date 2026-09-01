@@ -1,70 +1,56 @@
 # Stack Manager
 
-Self-contained Linux host control plane. Bootstrap installs **Caddy + PHP 8.4 + SQLite** with zero pre-existing stack.
+Self-contained Linux host control plane. Bootstrap installs **Caddy**, **PHP 8.4 FPM**, and a **SQLite**-backed Laravel panel — no pre-installed `lcmp`/`lamp` stack required.
 
-Adapted from [lacmp_gui](https://github.com/azerioid/lacmp_gui) (v1 LACMP Panel). Install paths remain `/usr/local/lib/lacmp-panel` until a later rename phase.
-
-## Quick start (bootstrap)
+## Quick start
 
 ```bash
-# as root on Ubuntu 24.04, Debian 12, or EL 9
-git clone <this-repo> stack-manager
-cd stack-manager
+git clone <repo> stack-manager && cd stack-manager
 chmod +x stack-manager.sh
-./stack-manager.sh
+sudo ./stack-manager.sh --non-interactive
 ```
 
-Default access: SSH tunnel to `http://127.0.0.1:3169`
+Panel default: `http://127.0.0.1:3169` (SSH tunnel: `ssh -L 3169:127.0.0.1:3169 user@host`)
 
-```bash
-ssh -L 3169:127.0.0.1:3169 user@host
-```
+## Supported OS
 
-## What bootstrap installs
+- Ubuntu 24.04
+- Debian 12
+- Alma/Rocky/RHEL/OL 9+ (SELinux enforcing supported)
 
-| Component | Role |
-|-----------|------|
-| Caddy | Panel vhost on `127.0.0.1:3169` |
-| PHP 8.4 FPM | Dedicated panel pool (`/run/php/lacmp-panel.sock`) |
-| SQLite | Panel DB at `/var/lib/lacmp-panel/panel.sqlite` |
-| Queue worker | `lacmp-panel-queue.service` |
+## Layout
 
-Bootstrap metadata: `/etc/lacmp-panel/bootstrap.json`
-
-## Project layout
-
-```
-docs/           SPEC, decisions, port ownership
-registry/       Component schema + detect/distro stubs
-broker/         Privileged host broker (PHP)
-web/            Laravel 12 + Livewire panel
-deploy/         Installer modules, cloud-init, smoke tests
-stack-manager.sh Entrypoint
-```
+| Path | Purpose |
+|------|---------|
+| `stack-manager.sh` | Bootstrap entrypoint |
+| `deploy/install.sh` | Modular installer |
+| `deploy/lib/` | Installer modules |
+| `broker/` | Privileged host broker |
+| `web/` | Laravel 12 + Livewire UI |
+| `registry/` | Component metadata (P0 stubs) |
+| `docs/SPEC.md` | Master specification |
 
 ## Smoke test
 
-Every phase exit runs against Ubuntu 24.04, Debian 12, and EL 9:
+After install on a VM:
 
 ```bash
-./deploy/test/smoke-p1.sh
+sudo ./deploy/test/smoke-p1.sh
 ```
-
-Cloud-init templates: `deploy/test/cloud-init/`
 
 ## Uninstall
 
 ```bash
-./deploy/uninstall.sh
-./deploy/uninstall.sh --drop-db --remove-bootstrap-pkgs
+sudo ./deploy/uninstall.sh --drop-db --remove-bootstrap
 ```
 
-Never touches `/data/www` or user sites.
+## Phase 1 scope
 
-## Deferred (not in P0/P1)
+- Self-contained bootstrap (Caddy + PHP 8.4 + SQLite)
+- Queue worker (`lacmp-panel-queue.service`)
+- Settings panel runtime section + Components system cards stub
+- `panel.runtime` broker action
 
-- Component install/remove (P3+)
-- MariaDB panel DB / migrate.sh (P7)
-- Adopt flow for legacy lcmp/lamp (P5)
+Not in P1: component install/remove, adopt flow, MariaDB panel DB, `migrate.sh`.
 
-See `docs/SPEC.md` for full architecture.
+See `docs/SPEC.md` and `docs/DECISIONS.md` for locked architecture decisions.
