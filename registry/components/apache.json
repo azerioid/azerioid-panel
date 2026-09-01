@@ -1,0 +1,32 @@
+{
+  "id": "apache",
+  "display_name": "Apache httpd",
+  "category": "web",
+  "description": "Apache HTTP Server",
+  "managed": true,
+  "system": false,
+  "min_os": { "ubuntu": "24.04", "debian": "12", "el": "9" },
+  "ports": [
+    { "port": 80, "bind": "0.0.0.0", "owner": "apache", "protocol": "tcp" },
+    { "port": 443, "bind": "0.0.0.0", "owner": "apache", "protocol": "tcp" }
+  ],
+  "conflicts": ["nginx", "caddy"],
+  "distros": {
+    "ubuntu": {
+      "packages": ["apache2", "libapache2-mod-fcgid"],
+      "unit_name": "apache2",
+      "detect": { "packages": ["apache2"], "unit": "apache2", "command": "apache2 -v" }
+    },
+    "debian": {
+      "packages": ["apache2", "libapache2-mod-fcgid"],
+      "unit_name": "apache2",
+      "detect": { "packages": ["apache2"], "unit": "apache2", "command": "apache2 -v" }
+    },
+    "el": {
+      "packages": ["httpd", "mod_fcgid"],
+      "unit_name": "httpd",
+      "detect": { "packages": ["httpd"], "unit": "httpd", "command": "httpd -v" }
+    }
+  },
+  "preflight": { "min_disk_gb": 1, "min_ram_mb": 512 }
+}

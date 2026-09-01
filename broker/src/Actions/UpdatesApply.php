@@ -1,0 +1,48 @@
+<?php
+declare(strict_types=1);
+
+namespace LacmpPanel\Broker\Actions;
+
+use LacmpPanel\Broker\BrokerException;
+use LacmpPanel\Broker\Config;
+use LacmpPanel\Broker\Runtime;
+use LacmpPanel\Broker\Validator;
+
+final class UpdatesApply
+{
+    public function handle(string $action, array $args, array $input, Runtime $runtime, Config $config): array
+    {
+        if ($action === 'updates.apply.security') {
+            Validator::typedConfirm((string) ($input['confirm'] ?? ''), 'APPLY-SECURITY');
+            if (!$runtime->fileExists('/usr/sbin/unattended-upgrade') && !$runtime->fileExists('/usr/bin/unattended-upgrade')) {
+                throw new BrokerException('unattended-upgrade is not installed.', 3);
+            }
+            $bin = $runtime->fileExists('/usr/sbin/unattended-upgrade')
+                ? '/usr/sbin/unattended-upgrade'
+                : '/usr/bin/unattended-upgrade';
+            $result = $runtime->exec([$bin, '-v'], null, 900);
+        } else {
+            Validator::typedConfirm((string) ($input['confirm'] ?? ''), 'APPLY-ALL');
+            $result = $runtime->exec([
+                '/usr/bin/apt-get',
+                '-y',
+                '-o',
+                'Dpkg::Options::=--force-confold',
+                'upgrade',
+            ], null, 900);
+        }
+
+        $out = trim($result->stdout . "\n" . $result->stderr);
+        if (strlen($out) > 200_000) {
+            $out = substr($out, 0, 200_000) . "\n… truncated …";
+        }
+        if (!$result->ok()) {
+            throw new BrokerException($out !== '' ? $out : 'Update command failed.', 1);
+        }
+        return [
+            'action' => $action,
+            'exit' => $result->exit,
+            'output' => $out,
+        ];
+    }
+}

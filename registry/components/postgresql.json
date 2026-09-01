@@ -1,0 +1,32 @@
+{
+  "id": "postgresql",
+  "display_name": "PostgreSQL",
+  "category": "database",
+  "description": "PostgreSQL relational database server",
+  "managed": true,
+  "system": false,
+  "min_os": { "ubuntu": "24.04", "debian": "12", "el": "9" },
+  "ports": [
+    { "port": 5432, "bind": "127.0.0.1", "owner": "postgres", "protocol": "tcp" }
+  ],
+  "conflicts": [],
+  "distros": {
+    "ubuntu": {
+      "packages": ["postgresql"],
+      "unit_name": "postgresql",
+      "detect": { "packages": ["postgresql"], "unit": "postgresql", "command": "psql --version" }
+    },
+    "debian": {
+      "packages": ["postgresql"],
+      "unit_name": "postgresql",
+      "detect": { "packages": ["postgresql"], "unit": "postgresql", "command": "psql --version" }
+    },
+    "el": {
+      "packages": ["postgresql-server"],
+      "unit_name": "postgresql",
+      "detect": { "packages": ["postgresql-server"], "unit": "postgresql", "command": "psql --version" },
+      "post_install": ["postgresql-setup --initdb"]
+    }
+  },
+  "preflight": { "min_disk_gb": 2, "min_ram_mb": 1024 }
+}

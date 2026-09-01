@@ -1,0 +1,32 @@
+{
+  "id": "nginx",
+  "display_name": "Nginx",
+  "category": "web",
+  "description": "High-performance web server and reverse proxy",
+  "managed": true,
+  "system": false,
+  "min_os": { "ubuntu": "24.04", "debian": "12", "el": "9" },
+  "ports": [
+    { "port": 80, "bind": "0.0.0.0", "owner": "nginx", "protocol": "tcp" },
+    { "port": 443, "bind": "0.0.0.0", "owner": "nginx", "protocol": "tcp" }
+  ],
+  "conflicts": ["apache", "caddy"],
+  "distros": {
+    "ubuntu": {
+      "packages": ["nginx"],
+      "unit_name": "nginx",
+      "detect": { "packages": ["nginx"], "unit": "nginx", "command": "nginx -v" }
+    },
+    "debian": {
+      "packages": ["nginx"],
+      "unit_name": "nginx",
+      "detect": { "packages": ["nginx"], "unit": "nginx", "command": "nginx -v" }
+    },
+    "el": {
+      "packages": ["nginx"],
+      "unit_name": "nginx",
+      "detect": { "packages": ["nginx"], "unit": "nginx", "command": "nginx -v" }
+    }
+  },
+  "preflight": { "min_disk_gb": 1, "min_ram_mb": 512 }
+}

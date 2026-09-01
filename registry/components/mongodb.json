@@ -1,0 +1,31 @@
+{
+  "id": "mongodb",
+  "display_name": "MongoDB",
+  "category": "database",
+  "description": "MongoDB document database",
+  "managed": true,
+  "system": false,
+  "min_os": { "ubuntu": "24.04", "debian": "12", "el": "9" },
+  "ports": [
+    { "port": 27017, "bind": "127.0.0.1", "owner": "mongod", "protocol": "tcp" }
+  ],
+  "conflicts": [],
+  "distros": {
+    "ubuntu": {
+      "packages": ["mongodb-org"],
+      "unit_name": "mongod",
+      "detect": { "packages": ["mongodb-org"], "unit": "mongod", "command": "mongod --version" }
+    },
+    "debian": {
+      "packages": ["mongodb-org"],
+      "unit_name": "mongod",
+      "detect": { "packages": ["mongodb-org"], "unit": "mongod", "command": "mongod --version" }
+    },
+    "el": {
+      "packages": ["mongodb-org"],
+      "unit_name": "mongod",
+      "detect": { "packages": ["mongodb-org"], "unit": "mongod", "command": "mongod --version" }
+    }
+  },
+  "preflight": { "min_disk_gb": 2, "min_ram_mb": 1024 }
+}

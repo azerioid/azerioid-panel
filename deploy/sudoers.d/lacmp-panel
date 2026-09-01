@@ -1,0 +1,9 @@
+# LACMP Panel — sudoers
+#
+# The web worker (caddy) may run ONLY this broker, as root, with no password.
+# Never add wildcards, never allow /bin/systemctl, never allow /usr/bin/lacmp.
+#
+# Validate: visudo -c -f /etc/sudoers.d/lacmp-panel
+Defaults:caddy !requiretty
+Defaults:caddy umask=0022
+caddy ALL=(root) NOPASSWD: /usr/local/lib/lacmp-panel/broker

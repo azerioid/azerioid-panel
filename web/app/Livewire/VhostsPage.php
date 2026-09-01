@@ -1,0 +1,115 @@
+<?php
+
+namespace App\Livewire;
+
+use App\Services\Broker\BrokerCallException;
+use App\Services\Broker\BrokerClient;
+use LacmpPanel\Broker\Validator;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
+use Livewire\Component;
+
+#[Layout('layouts.app')]
+#[Title('Virtual hosts · LACMP Panel')]
+class VhostsPage extends Component
+{
+    public array $vhosts = [];
+    public array $phpVersions = [];
+    public string $domain = '';
+    public string $root = '';
+    public string $type = 'php';
+    public string $php_version = '';
+    public string $upstream = '127.0.0.1:9000';
+    public ?string $error = null;
+    public ?string $flash = null;
+    public ?string $confirmDelete = null;
+    public bool $showForm = false;
+
+    public function mount(BrokerClient $broker): void
+    {
+        $this->reload($broker);
+    }
+
+    public function updatedDomain(): void
+    {
+        if ($this->root === '' && $this->domain !== '') {
+            try {
+                $d = Validator::domain($this->domain);
+                $this->root = rtrim((string) config('lacmp.www_root'), '/') . '/' . $d;
+            } catch (\Throwable) {
+            }
+        }
+    }
+
+    public function create(BrokerClient $broker): void
+    {
+        $this->error = null;
+        try {
+            $domain = Validator::domain($this->domain);
+            $root = Validator::webRoot($this->root, (string) config('lacmp.www_root'), new \LacmpPanel\Broker\FakeRuntime());
+            $type = Validator::vhostType($this->type);
+            $args = [$domain, $root, $type];
+            if ($type === 'php') {
+                $args[] = Validator::phpVersion($this->php_version, $this->phpVersions);
+            } elseif ($type === 'proxy') {
+                $args[] = Validator::localUpstream($this->upstream);
+            }
+            $res = $broker->call('vhost.add', $args);
+            if (! $res->ok) {
+                $this->error = $this->operatorMessage((string) $res->error);
+                return;
+            }
+            $this->flash = "Created {$domain}.";
+            $this->reset('domain', 'root', 'type', 'upstream', 'showForm');
+            $this->reload($broker);
+        } catch (\Throwable $e) {
+            $this->error = $this->operatorMessage($e->getMessage());
+        }
+    }
+
+    public function delete(BrokerClient $broker, string $domain): void
+    {
+        $res = $broker->call('vhost.del', [Validator::domain($domain)]);
+        if (! $res->ok) {
+            $this->error = $this->operatorMessage((string) $res->error);
+        } else {
+            $this->flash = "Deleted {$domain}. Website files were left in place.";
+        }
+        $this->confirmDelete = null;
+        $this->reload($broker);
+    }
+
+    private function operatorMessage(string $raw): string
+    {
+        if (str_contains($raw, 'open_basedir')) {
+            return 'Broker PHP is restricted by open_basedir. Re-run the panel installer so the broker wrapper is installed.';
+        }
+        if (str_contains($raw, 'read-only for the broker context') || str_contains($raw, 'Read-only file system')) {
+            return 'Web-server config is read-only in the panel process namespace. Re-run the installer so the broker leaves the PHP-FPM sandbox (ProtectSystem).';
+        }
+
+        return (string) preg_replace('#(?:/etc/caddy/conf\.d|/etc/apache2/sites-(?:available|enabled)|/etc/httpd/conf\.d/vhost)/\S+#', 'an existing vhost', $raw);
+    }
+
+    private function reload(BrokerClient $broker): void
+    {
+        try {
+            $this->vhosts = $broker->call('vhost.list')->dataOrFail()['vhosts'] ?? [];
+            $php = $broker->call('php.versions')->dataOrFail()['versions'] ?? [];
+            $this->phpVersions = array_column($php, 'version');
+            if ($this->php_version === '' && $this->phpVersions !== []) {
+                $this->php_version = $this->phpVersions[array_key_last($this->phpVersions)];
+            }
+        } catch (BrokerCallException $e) {
+            $this->error = $e->getMessage();
+        }
+    }
+
+    public function render()
+    {
+        return view('livewire.vhosts')->layoutData([
+            'heading' => 'Virtual hosts',
+            'sub' => 'Reverse-proxy and protected vhosts are read-only',
+        ]);
+    }
+}

@@ -1,0 +1,8 @@
+Id=caddy.service
+ActiveState=active
+SubState=running
+MainPID=1420
+NRestarts=0
+ActiveEnterTimestamp=Fri 2026-08-28 07:00:00 UTC
+UnitFileState=enabled
+Description=Caddy

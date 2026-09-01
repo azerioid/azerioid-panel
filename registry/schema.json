@@ -1,0 +1,188 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stack-manager.local/registry/schema.json",
+  "title": "Stack Manager Component",
+  "type": "object",
+  "required": [
+    "id",
+    "display_name",
+    "category",
+    "description",
+    "managed",
+    "system",
+    "min_os",
+    "ports",
+    "conflicts",
+    "distros"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "display_name": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "web",
+        "runtime",
+        "database",
+        "cache",
+        "other"
+      ]
+    },
+    "description": {
+      "type": "string"
+    },
+    "managed": {
+      "type": "boolean"
+    },
+    "system": {
+      "type": "boolean"
+    },
+    "min_os": {
+      "type": "object",
+      "properties": {
+        "ubuntu": {
+          "type": "string"
+        },
+        "debian": {
+          "type": "string"
+        },
+        "el": {
+          "type": "string"
+        }
+      }
+    },
+    "ports": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "port",
+          "bind",
+          "owner",
+          "protocol"
+        ],
+        "properties": {
+          "port": {
+            "type": "integer"
+          },
+          "bind": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "tcp",
+              "udp"
+            ]
+          }
+        }
+      }
+    },
+    "conflicts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "distros": {
+      "type": "object",
+      "properties": {
+        "debian": {
+          "$ref": "#/$defs/distro"
+        },
+        "ubuntu": {
+          "$ref": "#/$defs/distro"
+        },
+        "el": {
+          "$ref": "#/$defs/distro"
+        }
+      }
+    },
+    "preflight": {
+      "type": "object",
+      "properties": {
+        "min_disk_gb": {
+          "type": "number"
+        },
+        "min_ram_mb": {
+          "type": "integer"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "distro": {
+      "type": "object",
+      "properties": {
+        "packages": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unit_name": {
+          "type": "string"
+        },
+        "detect": {
+          "type": "object",
+          "properties": {
+            "packages": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "unit": {
+              "type": "string"
+            },
+            "command": {
+              "type": "string"
+            }
+          }
+        },
+        "repo": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string"
+            },
+            "gpg_fingerprint": {
+              "type": "string"
+            },
+            "keyring": {
+              "type": "string"
+            },
+            "signed_by": {
+              "type": "string"
+            }
+          }
+        },
+        "post_install": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "secure": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "selinux": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

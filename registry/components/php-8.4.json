@@ -1,0 +1,99 @@
+{
+  "id": "php-8.4",
+  "display_name": "PHP 8.4 (panel runtime)",
+  "category": "runtime",
+  "description": "Pinned panel PHP-FPM pool; non-removable while panel runs.",
+  "managed": true,
+  "system": true,
+  "min_os": {
+    "ubuntu": "24.04",
+    "debian": "12",
+    "el": "9"
+  },
+  "ports": [],
+  "conflicts": [],
+  "distros": {
+    "debian": {
+      "packages": [
+        "php8.4-fpm",
+        "php8.4-cli",
+        "php8.4-common",
+        "php8.4-sqlite3",
+        "php8.4-mbstring",
+        "php8.4-xml",
+        "php8.4-curl",
+        "php8.4-zip"
+      ],
+      "unit_name": "php8.4-fpm",
+      "detect": {
+        "packages": [
+          "php8.4-fpm"
+        ],
+        "unit": "php8.4-fpm",
+        "command": "php8.4 -v"
+      },
+      "repo": {
+        "url": "https://packages.sury.org/php/",
+        "gpg_fingerprint": "B188E2B6957258CB978A068AC3E4FAA2224E5DC7",
+        "keyring": "/usr/share/keyrings/deb.sury.org-php.gpg",
+        "signed_by": "/usr/share/keyrings/deb.sury.org-php.gpg"
+      }
+    },
+    "ubuntu": {
+      "packages": [
+        "php8.4-fpm",
+        "php8.4-cli",
+        "php8.4-common",
+        "php8.4-sqlite3",
+        "php8.4-mbstring",
+        "php8.4-xml",
+        "php8.4-curl",
+        "php8.4-zip"
+      ],
+      "unit_name": "php8.4-fpm",
+      "detect": {
+        "packages": [
+          "php8.4-fpm"
+        ],
+        "unit": "php8.4-fpm",
+        "command": "php8.4 -v"
+      },
+      "repo": {
+        "url": "https://packages.sury.org/php/",
+        "gpg_fingerprint": "B188E2B6957258CB978A068AC3E4FAA2224E5DC7",
+        "keyring": "/usr/share/keyrings/deb.sury.org-php.gpg",
+        "signed_by": "/usr/share/keyrings/deb.sury.org-php.gpg"
+      }
+    },
+    "el": {
+      "packages": [
+        "phpphp84-php-fpm",
+        "phpphp84-php-cli",
+        "phpphp84-php-common",
+        "phpphp84-php-mysqlnd",
+        "phpphp84-php-pdo",
+        "phpphp84-php-xml",
+        "phpphp84-php-mbstring",
+        "phpphp84-php-zip"
+      ],
+      "unit_name": "php-fpm",
+      "detect": {
+        "packages": [
+          "phpphp84-php-fpm"
+        ],
+        "unit": "php-fpm",
+        "command": "php -v"
+      },
+      "repo": {
+        "url": "https://rpms.remirepo.net/enterprise/remi-release-9.rpm",
+        "gpg_fingerprint": "",
+        "keyring": "/etc/pki/rpm-gpg/RPM-GPG-KEY-remi",
+        "signed_by": ""
+      }
+    }
+  },
+  "preflight": {
+    "min_disk_gb": 0.5,
+    "min_ram_mb": 256
+  }
+}

@@ -1,0 +1,20 @@
+#cloud-config
+# Stack Manager P1 smoke — Ubuntu 24.04
+package_update: true
+package_upgrade: true
+packages:
+  - git
+  - curl
+  - ca-certificates
+  - python3
+  - openssl
+  - rsync
+  - sudo
+  - systemd
+  - visudo
+  - acl
+  - sqlite3
+runcmd:
+  - mkdir -p /opt/stack-manager
+  - echo "Stack Manager smoke VM ready (Ubuntu 24.04)" > /etc/motd
+final_message: "Stack Manager Ubuntu 24.04 test VM ready after $UPTIME seconds"

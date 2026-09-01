@@ -1,0 +1,30 @@
+{
+    "paths": {
+        "www_root": "/data/www",
+        "caddy_confd": "/etc/caddy/conf.d",
+        "caddyfile": "/etc/caddy/Caddyfile",
+        "caddy_bin": "/usr/bin/caddy",
+        "vhost_dir": "/etc/caddy/conf.d",
+        "vhost_available": "",
+        "web_log_dir": "/var/log/caddy",
+        "apache_ctl": "",
+        "audit_log": "/var/log/lacmp-panel/broker-audit.log",
+        "artisan": "/usr/local/lib/lacmp-panel/web/artisan",
+        "staging_dir": "/var/lib/lacmp-panel/staging",
+        "cron_d": "/etc/cron.d/lacmp-panel",
+        "panel_root": "/usr/local/lib/lacmp-panel"
+    },
+    "stack": "bootstrap",
+    "web_server": "caddy",
+    "web_service": "caddy",
+    "vhost_format": "caddyfile",
+    "web_user": "caddy",
+    "panel_runtime": {
+        "php_version": "8.4",
+        "fpm_socket": "/run/php/lacmp-panel.sock",
+        "fpm_pool": "lacmp-panel",
+        "queue_unit": "lacmp-panel-queue.service"
+    },
+    "readonly_vhosts": [],
+    "observed_services": []
+}

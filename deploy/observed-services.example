@@ -1,0 +1,8 @@
+# Not installed. Optional extras for /etc/lacmp-panel/broker.json.
+# Observed entries are listed with no Start/Stop/Restart.
+# The default is an empty array; only add what this host should show.
+#
+# "observed_services": [
+#     "custom-worker",
+#     "127.0.0.1:9000"
+# ]

@@ -1,0 +1,34 @@
+{
+  "id": "mariadb",
+  "display_name": "MariaDB",
+  "category": "database",
+  "description": "MariaDB relational database server",
+  "managed": true,
+  "system": false,
+  "min_os": { "ubuntu": "24.04", "debian": "12", "el": "9" },
+  "ports": [
+    { "port": 3306, "bind": "127.0.0.1", "owner": "mariadb", "protocol": "tcp" }
+  ],
+  "conflicts": ["postgresql"],
+  "distros": {
+    "ubuntu": {
+      "packages": ["mariadb-server"],
+      "unit_name": "mariadb",
+      "detect": { "packages": ["mariadb-server"], "unit": "mariadb", "command": "mariadb --version" },
+      "secure": ["mysql_secure_installation"]
+    },
+    "debian": {
+      "packages": ["mariadb-server"],
+      "unit_name": "mariadb",
+      "detect": { "packages": ["mariadb-server"], "unit": "mariadb", "command": "mariadb --version" },
+      "secure": ["mysql_secure_installation"]
+    },
+    "el": {
+      "packages": ["mariadb-server"],
+      "unit_name": "mariadb",
+      "detect": { "packages": ["mariadb-server"], "unit": "mariadb", "command": "mariadb --version" },
+      "secure": ["mysql_secure_installation"]
+    }
+  },
+  "preflight": { "min_disk_gb": 2, "min_ram_mb": 1024 }
+}

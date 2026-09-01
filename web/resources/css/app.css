@@ -1,0 +1,45 @@
+@import url('https://fonts.bunny.net/css?family=ibm-plex-mono:400,500,600|ibm-plex-sans:400,500,600,650');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    html {
+        @apply bg-ink-950 text-zinc-200 antialiased;
+    }
+    body {
+        background-image:
+            radial-gradient(1200px 500px at 10% -10%, rgba(201, 150, 61, 0.08), transparent 50%),
+            linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+        background-size: auto, 48px 48px, 48px 48px;
+    }
+}
+
+@layer components {
+    .panel {
+        @apply rounded-lg bg-ink-800/90 shadow-panel;
+    }
+    .btn {
+        @apply inline-flex items-center justify-center gap-2 rounded-md px-3.5 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-brass-400/40 disabled:opacity-50;
+    }
+    .btn-primary {
+        @apply btn bg-brass-500 text-ink-950 hover:bg-brass-400;
+    }
+    .btn-ghost {
+        @apply btn bg-ink-700 text-zinc-200 hover:bg-ink-600;
+    }
+    .btn-danger {
+        @apply btn bg-bad/90 text-white hover:bg-bad;
+    }
+    .field {
+        @apply w-full rounded-md border border-white/10 bg-ink-950 px-3 py-2 font-mono text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-brass-400 focus:outline-none focus:ring-1 focus:ring-brass-400/40;
+    }
+    .led {
+        @apply inline-block h-2 w-2 rounded-full;
+    }
+    .led-on { @apply bg-good shadow-[0_0_8px_#3d9a7a]; }
+    .led-off { @apply bg-zinc-600; }
+    .led-bad { @apply bg-bad shadow-[0_0_8px_#c45c4a]; }
+}

@@ -1,0 +1,21 @@
+# Example: public IP mode (tls internal). Browser will warn: untrusted cert.
+# Generated live by: ./lacmp_gui.sh --access=public --ip=<addr> --port=3169
+#
+# Never serve the panel over plaintext HTTP on a public interface.
+
+https://203.0.113.10:3169 {
+    tls internal
+    encode gzip zstd
+    root * /usr/local/lib/lacmp-panel/web/public
+    php_fastcgi unix//run/php/lacmp-panel.sock
+    file_server
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy no-referrer
+        -Server
+    }
+    log {
+        output file /var/log/caddy/lacmp-panel.log
+    }
+}

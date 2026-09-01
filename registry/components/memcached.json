@@ -1,0 +1,34 @@
+{
+  "id": "memcached",
+  "display_name": "Memcached",
+  "category": "cache",
+  "description": "Distributed memory caching system",
+  "managed": true,
+  "system": false,
+  "min_os": { "ubuntu": "24.04", "debian": "12", "el": "9" },
+  "ports": [
+    { "port": 11211, "bind": "127.0.0.1", "owner": "memcached", "protocol": "tcp" }
+  ],
+  "conflicts": [],
+  "distros": {
+    "ubuntu": {
+      "packages": ["memcached"],
+      "unit_name": "memcached",
+      "detect": { "packages": ["memcached"], "unit": "memcached", "command": "memcached -h" },
+      "secure": ["sed -i 's/^-l .*/-l 127.0.0.1/' /etc/memcached.conf"]
+    },
+    "debian": {
+      "packages": ["memcached"],
+      "unit_name": "memcached",
+      "detect": { "packages": ["memcached"], "unit": "memcached", "command": "memcached -h" },
+      "secure": ["sed -i 's/^-l .*/-l 127.0.0.1/' /etc/memcached.conf"]
+    },
+    "el": {
+      "packages": ["memcached"],
+      "unit_name": "memcached",
+      "detect": { "packages": ["memcached"], "unit": "memcached", "command": "memcached -h" },
+      "secure": ["sed -i 's/^OPTIONS=.*/OPTIONS=\"-l 127.0.0.1\"/' /etc/sysconfig/memcached"]
+    }
+  },
+  "preflight": { "min_disk_gb": 0.25, "min_ram_mb": 128 }
+}

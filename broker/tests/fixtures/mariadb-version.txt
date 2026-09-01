@@ -1,0 +1,1 @@
+mariadb from 11.4.5-MariaDB, client 15.2 for debian-linux-gnu (x86_64) using  EditLine wrapper

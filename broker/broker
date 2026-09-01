@@ -1,0 +1,45 @@
+#!/bin/bash
+# Privileged broker launcher.
+#
+# 1. LACMP's CLI php.ini often sets open_basedir / disable_functions. Clear
+#    both so this process can write Caddy config and spawn argv (no shell).
+# 2. PHP-FPM runs with ProtectSystem=full. sudo keeps that mount namespace,
+#    so /etc is EROFS even as root. Re-exec via systemd-run so PID 1 starts
+#    us in a normal namespace. The FPM drop-in only punches holes for panel
+#    storage (ProtectSystem=full remounts /usr). It must never list missing
+#    web-server dirs (/etc/caddy on LAMP → 226/NAMESPACE).
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SELF="${ROOT}/broker"
+# Prefer Caddy's data dir when it exists (LACMP). LAMP has no /var/lib/caddy.
+BROKER_HOME=/var/lib/lacmp-panel
+[[ -d /var/lib/caddy ]] && BROKER_HOME=/var/lib/caddy
+
+PHP_BIN="${LACMP_BROKER_PHP:-}"
+if [[ -z "${PHP_BIN}" ]]; then
+    PHP_BIN="$(command -v php || true)"
+fi
+if [[ -z "${PHP_BIN}" || ! -x "${PHP_BIN}" ]]; then
+    PHP_BIN=/usr/bin/php
+fi
+
+if [[ -z "${LACMP_BROKER_UNSANDBOXED:-}" ]] \
+    && [[ -d /run/systemd/system ]] \
+    && command -v systemd-run >/dev/null 2>&1; then
+    export LACMP_BROKER_UNSANDBOXED=1
+    exec systemd-run --quiet --wait --pipe --collect \
+        --working-directory="${ROOT}" \
+        -E LACMP_BROKER_UNSANDBOXED=1 \
+        -E LACMP_BROKER_PHP="${PHP_BIN}" \
+        -E LACMP_PANEL_CONFIG="${LACMP_PANEL_CONFIG:-/etc/lacmp-panel/broker.json}" \
+        -E PATH="${PATH:-/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}" \
+        -E HOME="${BROKER_HOME}" \
+        -E XDG_CONFIG_HOME="${BROKER_HOME}/.config" \
+        -E XDG_DATA_HOME="${BROKER_HOME}/.local/share" \
+        -- "${SELF}" "$@"
+fi
+
+exec "${PHP_BIN}" \
+    -d open_basedir= \
+    -d disable_functions= \
+    "${ROOT}/broker.php" "$@"

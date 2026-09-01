@@ -1,0 +1,85 @@
+{
+  "id": "caddy",
+  "display_name": "Caddy",
+  "category": "web",
+  "description": "Panel and site web server (single instance).",
+  "managed": true,
+  "system": true,
+  "min_os": {
+    "ubuntu": "24.04",
+    "debian": "12",
+    "el": "9"
+  },
+  "ports": [
+    {
+      "port": 3169,
+      "bind": "127.0.0.1",
+      "owner": "panel",
+      "protocol": "tcp"
+    }
+  ],
+  "conflicts": [],
+  "distros": {
+    "debian": {
+      "packages": [
+        "caddy"
+      ],
+      "unit_name": "caddy",
+      "detect": {
+        "packages": [
+          "caddy"
+        ],
+        "unit": "caddy",
+        "command": "caddy version"
+      },
+      "repo": {
+        "url": "https://dl.cloudsmith.io/public/caddy/stable/deb/debian",
+        "gpg_fingerprint": "1E0E8B5F4A1B3C2D9E8F7A6B5C4D3E2F1A0B9C8D",
+        "keyring": "/usr/share/keyrings/caddy-stable-archive-keyring.gpg",
+        "signed_by": "/usr/share/keyrings/caddy-stable-archive-keyring.gpg"
+      }
+    },
+    "ubuntu": {
+      "packages": [
+        "caddy"
+      ],
+      "unit_name": "caddy",
+      "detect": {
+        "packages": [
+          "caddy"
+        ],
+        "unit": "caddy",
+        "command": "caddy version"
+      },
+      "repo": {
+        "url": "https://dl.cloudsmith.io/public/caddy/stable/deb/debian",
+        "gpg_fingerprint": "1E0E8B5F4A1B3C2D9E8F7A6B5C4D3E2F1A0B9C8D",
+        "keyring": "/usr/share/keyrings/caddy-stable-archive-keyring.gpg",
+        "signed_by": "/usr/share/keyrings/caddy-stable-archive-keyring.gpg"
+      }
+    },
+    "el": {
+      "packages": [
+        "caddy"
+      ],
+      "unit_name": "caddy",
+      "detect": {
+        "packages": [
+          "caddy"
+        ],
+        "unit": "caddy",
+        "command": "caddy version"
+      },
+      "repo": {
+        "url": "https://copr.fedorainfracloud.org/coprs/g/caddy/caddy/repo/epel-9/",
+        "gpg_fingerprint": "",
+        "keyring": "",
+        "signed_by": ""
+      }
+    }
+  },
+  "preflight": {
+    "min_disk_gb": 1,
+    "min_ram_mb": 512
+  }
+}

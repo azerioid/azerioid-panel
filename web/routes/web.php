@@ -1,0 +1,50 @@
+<?php
+
+use App\Livewire\AlertsPage;
+use App\Livewire\AuditLogPage;
+use App\Livewire\Auth\Login;
+use App\Livewire\Auth\SetupWizard;
+use App\Livewire\Auth\TwoFactorChallenge;
+use App\Livewire\Auth\TwoFactorSetup;
+use App\Livewire\BackupsPage;
+use App\Livewire\ComponentsPage;
+use App\Livewire\Dashboard;
+use App\Livewire\DatabasesPage;
+use App\Livewire\LogsPage;
+use App\Livewire\SecurityPage;
+use App\Livewire\ServicesPage;
+use App\Livewire\SettingsPage;
+use App\Livewire\UpdatesPage;
+use App\Livewire\VhostsPage;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
+
+Route::get('/setup', SetupWizard::class)->name('setup')->middleware('guest');
+
+Route::middleware('guest')->group(function () {
+    Route::get('/login', Login::class)->name('login');
+    Route::get('/two-factor/challenge', TwoFactorChallenge::class)->name('two-factor.challenge');
+});
+
+Route::post('/logout', function () {
+    Auth::logout();
+    request()->session()->invalidate();
+    request()->session()->regenerateToken();
+    return redirect()->route('login');
+})->middleware('auth')->name('logout');
+
+Route::middleware(['auth', '2fa'])->group(function () {
+    Route::get('/two-factor/setup', TwoFactorSetup::class)->name('two-factor.setup');
+    Route::get('/', Dashboard::class)->name('dashboard');
+    Route::get('/alerts', AlertsPage::class)->name('alerts');
+    Route::get('/updates', UpdatesPage::class)->name('updates');
+    Route::get('/vhosts', VhostsPage::class)->name('vhosts');
+    Route::get('/databases', DatabasesPage::class)->name('databases');
+    Route::get('/backups', BackupsPage::class)->name('backups');
+    Route::get('/services', ServicesPage::class)->name('services');
+    Route::get('/logs', LogsPage::class)->name('logs');
+    Route::get('/security', SecurityPage::class)->name('security');
+    Route::get('/components', ComponentsPage::class)->name('components');
+    Route::get('/settings', SettingsPage::class)->name('settings');
+    Route::get('/audit', AuditLogPage::class)->name('audit');
+});
