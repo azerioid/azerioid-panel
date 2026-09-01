@@ -46,7 +46,7 @@ final class PosixRuntime implements Runtime
             'bypass_shell' => true,
         ]);
         if (!is_resource($proc)) {
-            throw new BrokerException('Failed to spawn process.', 1);
+            return new ExecResult($command, 127, '', 'Failed to spawn process.');
         }
 
         if ($stdin !== null) {
