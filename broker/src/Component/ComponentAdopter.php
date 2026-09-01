@@ -66,6 +66,10 @@ final class ComponentAdopter
         if (in_array($componentId, ['mariadb', 'postgresql'], true)) {
             (new DatabaseProvisioner($this->config, $this->runtime))->adopt($componentId);
         }
+        if ($componentId === 'mongodb') {
+            $logPath = rtrim($this->config->stagingDir, '/') . '/adopt-mongodb.log';
+            (new MongoProvisioner($this->config, $this->runtime))->provision(new OperationLogger($this->runtime, $logPath));
+        }
 
         $updated = (new ComponentCatalog($this->config, $this->runtime))->status($componentId);
 

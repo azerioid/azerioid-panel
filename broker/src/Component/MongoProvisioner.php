@@ -6,6 +6,7 @@ namespace AzerioidPanel\Broker\Component;
 use AzerioidPanel\Broker\BrokerException;
 use AzerioidPanel\Broker\Config;
 use AzerioidPanel\Broker\Database\BrokerConfigWriter;
+use AzerioidPanel\Broker\ExecResult;
 use AzerioidPanel\Broker\Runtime;
 use AzerioidPanel\Broker\Secrets;
 
@@ -139,10 +140,7 @@ final class MongoProvisioner
         $escaped = str_replace("'", "\\'", $password);
         $create = "db.getSiblingDB('admin').createUser({user: '" . self::ADMIN_USER
             . "', pwd: '{$escaped}', roles: [{role: 'root', db: 'admin'}]});";
-        $result = $this->runtime->exec(['/usr/bin/mongosh', '--quiet', '--eval', $create], null, 120);
-        if (!$result->ok()) {
-            $result = $this->runtime->exec(['/usr/bin/mongo', '--quiet', '--eval', $create], null, 120);
-        }
+        $result = $this->mongoshEval($create, 120);
         if ($result->ok()) {
             return true;
         }
@@ -152,14 +150,31 @@ final class MongoProvisioner
             $log->info('MongoDB admin user already exists; updating password.');
             $update = "db.getSiblingDB('admin').updateUser('" . self::ADMIN_USER
                 . "', {pwd: '{$escaped}'});";
-            $updateResult = $this->runtime->exec(['/usr/bin/mongosh', '--quiet', '--eval', $update], null, 120);
 
-            return $updateResult->ok();
+            return $this->mongoshEval($update, 120)->ok();
         }
 
         $log->warn(trim($result->stderr . ' ' . $result->stdout));
 
         return false;
+    }
+
+    private function mongoshEval(string $script, int $timeoutSeconds): ExecResult
+    {
+        $result = $this->runtime->exec(
+            ['/usr/bin/mongosh', '--quiet', '--eval', $script],
+            null,
+            $timeoutSeconds
+        );
+        if ($result->ok()) {
+            return $result;
+        }
+
+        return $this->runtime->exec(
+            ['/usr/bin/mongosh', '--quiet'],
+            $script . "\n",
+            $timeoutSeconds
+        );
     }
 
     private function anonymousPingOk(): bool
