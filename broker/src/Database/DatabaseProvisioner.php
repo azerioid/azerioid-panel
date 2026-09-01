@@ -159,7 +159,6 @@ final class DatabaseProvisioner
         $paths = [
             '/etc/mysql/mariadb.conf.d/50-server.cnf',
             '/etc/my.cnf.d/server.cnf',
-            '/etc/mysql/my.cnf',
         ];
         foreach ($paths as $path) {
             if (!$this->runtime->fileExists($path)) {
@@ -169,8 +168,15 @@ final class DatabaseProvisioner
             $content = $this->runtime->readFile($path);
             if (preg_match('/^bind-address\s*=/m', $content) === 1) {
                 $content = preg_replace('/^bind-address\s*=.*/m', 'bind-address = 127.0.0.1', $content) ?? $content;
+            } elseif (preg_match('/^\[mysqld\]/m', $content) === 1) {
+                $content = preg_replace(
+                    '/^(\[mysqld\][^\[]*)/m',
+                    "$1\nbind-address = 127.0.0.1",
+                    $content,
+                    1
+                ) ?? $content;
             } else {
-                $content .= "\nbind-address = 127.0.0.1\n";
+                $content .= "\n[mysqld]\nbind-address = 127.0.0.1\n";
             }
             $this->runtime->writeFile($path, $content, 0644);
         }
