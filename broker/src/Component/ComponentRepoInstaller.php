@@ -47,7 +47,7 @@ final class ComponentRepoInstaller
             );
             $this->runtime->writeFile(
                 $list,
-                "deb [signed-by=/usr/share/keyrings/php-sury-archive-keyring.gpg] https://packages.sury.org/php/ {$os->id} main\n",
+                "deb [signed-by=/usr/share/keyrings/php-sury-archive-keyring.gpg] https://packages.sury.org/php/ {$os->codename} main\n",
                 0644
             );
             $this->aptUpdate($log);

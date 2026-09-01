@@ -45,7 +45,7 @@ install_php_repo() {
             install -d -m 0755 /usr/share/keyrings
             curl -fsSL "${SURY_GPG_URL}" \
                 | gpg --dearmor -o /usr/share/keyrings/php-sury-archive-keyring.gpg
-            echo "deb [signed-by=/usr/share/keyrings/php-sury-archive-keyring.gpg] https://packages.sury.org/php/ ${OS_ID} main" \
+            echo "deb [signed-by=/usr/share/keyrings/php-sury-archive-keyring.gpg] https://packages.sury.org/php/ ${OS_CODENAME} main" \
                 > /etc/apt/sources.list.d/php-sury.list
             ;;
         el)

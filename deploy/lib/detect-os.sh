@@ -38,5 +38,13 @@ detect_os() {
     esac
 
     export OS_ID OS_VER OS_MAJOR DISTRO_FAMILY PKG_MGR
+    export OS_CODENAME="${VERSION_CODENAME:-}"
+    if [[ -z "${OS_CODENAME}" ]]; then
+        case "${OS_ID}" in
+            ubuntu) OS_CODENAME=noble ;;
+            debian) OS_CODENAME=bookworm ;;
+        esac
+    fi
+    export OS_CODENAME
     echo "==> OS: ${PRETTY_NAME:-$OS_ID $OS_VER} (${DISTRO_FAMILY}, ${PKG_MGR})"
 }
