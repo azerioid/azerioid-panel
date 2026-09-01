@@ -240,6 +240,8 @@ final class DatabaseProvisioner
         $escaped = SqlIdent::escapeLiteral($password);
         $sql = "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '"
             . self::ADMIN_USER . "') THEN CREATE ROLE " . self::ADMIN_USER
+            . " WITH LOGIN PASSWORD '{$escaped}' CREATEDB CREATEROLE; "
+            . "ELSE ALTER ROLE " . self::ADMIN_USER
             . " WITH LOGIN PASSWORD '{$escaped}' CREATEDB CREATEROLE; END IF; END \$\$;";
         $log->info('PostgreSQL admin setup');
         $result = $this->runtime->exec([
