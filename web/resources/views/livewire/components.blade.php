@@ -1,6 +1,22 @@
 <div class="space-y-6" @if ($activeOperation) wire:poll.2s="pollOperation" @endif>
     @if ($error)
         <div class="rounded-md border border-bad/30 bg-bad/10 px-4 py-3 text-sm text-bad">{{ $error }}</div>
+        @if ($preflightRemediations !== [])
+            <section class="panel border border-brass-500/30 p-5 space-y-3">
+                <p class="text-sm text-zinc-300">Resolve the port conflict, then retry:</p>
+                @foreach ($preflightRemediations as $remediation)
+                    <p class="text-sm text-zinc-400">{{ $remediation['detail'] ?? '' }}</p>
+                    @if (($remediation['action'] ?? '') === 'web.release_site_ports')
+                        <div class="flex gap-2">
+                            <button type="button" class="btn-primary" wire:click="releaseSitePorts">
+                                {{ $remediation['label'] ?? 'Release site ports' }}
+                            </button>
+                            <button type="button" class="btn-ghost" wire:click="dismissPreflightRemediation">Dismiss</button>
+                        </div>
+                    @endif
+                @endforeach
+            </section>
+        @endif
     @endif
     @if ($flash)
         <div class="rounded-md border border-good/30 bg-good/10 px-4 py-3 text-sm text-good">{{ $flash }}</div>

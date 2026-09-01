@@ -24,40 +24,36 @@ final class MongoProvisioner
         $password = Secrets::generatePassword();
         $configPath = getenv('AZERIOID_PANEL_CONFIG') ?: getenv('LACMP_PANEL_CONFIG') ?: '/etc/azerioid-panel/broker.json';
         $confPath = $this->mongodConfPath();
-        if ($confPath !== null) {
-            $log->info("Securing MongoDB bind address in {$confPath}");
-            $content = $this->runtime->readFile($confPath);
-            if (preg_match('/^\s*bindIp\s*:/m', $content) === 1) {
-                $content = preg_replace('/^\s*bindIp\s*:.*/m', '  bindIp: 127.0.0.1', $content) ?? $content;
-            } else {
-                $content .= "\nnet:\n  bindIp: 127.0.0.1\n";
-            }
-            $this->runtime->writeFile($confPath, $content, 0644);
-            $this->runtime->exec(['/usr/bin/systemctl', 'restart', 'mongod'], null, 120);
+        if ($confPath === null) {
+            throw new BrokerException('mongod.conf not found.', 1);
         }
 
-        $escaped = str_replace("'", "\\'", $password);
-        $createUser = "db.getSiblingDB('admin').createUser({user: '" . self::ADMIN_USER . "', pwd: '{$escaped}', roles: [{role: 'root', db: 'admin'}]});";
-        $log->info('Creating MongoDB panel admin user.');
-        $result = $this->runtime->exec(['/usr/bin/mongosh', '--quiet', '--eval', $createUser], null, 120);
-        if (!$result->ok()) {
-            $result = $this->runtime->exec(['/usr/bin/mongo', '--quiet', '--eval', $createUser], null, 120);
+        $log->info("Securing MongoDB bind address in {$confPath}");
+        $content = $this->setBindLocalhost($this->runtime->readFile($confPath));
+        $content = $this->setAuthorization($content, false);
+        $this->runtime->writeFile($confPath, $content, 0644);
+        $this->restartMongod($log);
+
+        if (!$this->waitForMongo(false)) {
+            throw new BrokerException('MongoDB did not become ready before user provisioning.', 1);
         }
-        if (!$result->ok()) {
+
+        $log->info('Creating MongoDB panel admin user.');
+        if (!$this->ensureAdminUser($password, $log)) {
             throw new BrokerException('Failed to create MongoDB admin user.', 1);
         }
 
-        if ($confPath !== null) {
-            $content = $this->runtime->readFile($confPath);
-            if (preg_match('/^\s*authorization\s*:/m', $content) === 1) {
-                $content = preg_replace('/^\s*authorization\s*:.*/m', '  authorization: enabled', $content) ?? $content;
-            } elseif (preg_match('/^security\s*:/m', $content) === 1) {
-                $content = preg_replace('/^security\s*:/m', "security:\n  authorization: enabled", $content) ?? $content;
-            } else {
-                $content .= "\nsecurity:\n  authorization: enabled\n";
-            }
-            $this->runtime->writeFile($confPath, $content, 0644);
-            $this->runtime->exec(['/usr/bin/systemctl', 'restart', 'mongod'], null, 120);
+        $log->info('Enabling MongoDB authorization.');
+        $content = $this->setAuthorization($this->runtime->readFile($confPath), true);
+        $this->runtime->writeFile($confPath, $content, 0644);
+        $this->restartMongod($log);
+
+        if (!$this->waitForMongo(true, $password)) {
+            throw new BrokerException('MongoDB did not accept admin credentials after enabling auth.', 1);
+        }
+
+        if ($this->anonymousPingOk()) {
+            throw new BrokerException('MongoDB still allows unauthenticated access after enabling auth.', 1);
         }
 
         BrokerConfigWriter::merge($this->runtime, $configPath, [
@@ -69,6 +65,129 @@ final class MongoProvisioner
             ],
         ]);
         $log->info('MongoDB secured (localhost + auth). SSPL license applies to mongodb-org packages.');
+    }
+
+    private function setBindLocalhost(string $content): string
+    {
+        if (preg_match('/^\s*bindIp\s*:/m', $content) === 1) {
+            return preg_replace('/^\s*bindIp\s*:.*/m', '  bindIp: 127.0.0.1', $content) ?? $content;
+        }
+
+        if (preg_match('/^net\s*:/m', $content) === 1) {
+            return preg_replace('/^net\s*:/m', "net:\n  bindIp: 127.0.0.1", $content, 1) ?? $content;
+        }
+
+        return rtrim($content) . "\nnet:\n  bindIp: 127.0.0.1\n";
+    }
+
+    private function setAuthorization(string $content, bool $enabled): string
+    {
+        $value = $enabled ? 'enabled' : 'disabled';
+        if (preg_match('/^\s*authorization\s*:/m', $content) === 1) {
+            return preg_replace('/^\s*authorization\s*:.*/m', '  authorization: ' . $value, $content) ?? $content;
+        }
+        if (preg_match('/^security\s*:/m', $content) === 1) {
+            return preg_replace('/^security\s*:/m', "security:\n  authorization: {$value}", $content, 1) ?? $content;
+        }
+
+        return rtrim($content) . "\nsecurity:\n  authorization: {$value}\n";
+    }
+
+    private function restartMongod(OperationLogger $log): void
+    {
+        $result = $this->runtime->exec(['/usr/bin/systemctl', 'restart', 'mongod'], null, 120);
+        if (!$result->ok()) {
+            throw new BrokerException('Failed to restart mongod.', 1);
+        }
+        $log->info('Restarted mongod.');
+    }
+
+    private function waitForMongo(bool $withAuth, string $password = ''): bool
+    {
+        for ($i = 0; $i < 30; $i++) {
+            if ($withAuth) {
+                $result = $this->runtime->exec(
+                    $this->mongoshAuthArgv($password, "db.adminCommand({ping:1})"),
+                    null,
+                    30
+                );
+            } else {
+                $result = $this->runtime->exec(
+                    ['/usr/bin/mongosh', '--quiet', '--eval', 'db.adminCommand({ping:1})'],
+                    null,
+                    30
+                );
+                if (!$result->ok()) {
+                    $result = $this->runtime->exec(
+                        ['/usr/bin/mongo', '--quiet', '--eval', 'db.adminCommand({ping:1})'],
+                        null,
+                        30
+                    );
+                }
+            }
+            if ($result->ok() && str_contains($result->stdout, 'ok')) {
+                return true;
+            }
+            usleep(500_000);
+        }
+
+        return false;
+    }
+
+    private function ensureAdminUser(string $password, OperationLogger $log): bool
+    {
+        $escaped = str_replace("'", "\\'", $password);
+        $create = "db.getSiblingDB('admin').createUser({user: '" . self::ADMIN_USER
+            . "', pwd: '{$escaped}', roles: [{role: 'root', db: 'admin'}]});";
+        $result = $this->runtime->exec(['/usr/bin/mongosh', '--quiet', '--eval', $create], null, 120);
+        if (!$result->ok()) {
+            $result = $this->runtime->exec(['/usr/bin/mongo', '--quiet', '--eval', $create], null, 120);
+        }
+        if ($result->ok()) {
+            return true;
+        }
+
+        $combined = strtolower($result->stderr . "\n" . $result->stdout);
+        if (str_contains($combined, 'already exists')) {
+            $log->info('MongoDB admin user already exists; updating password.');
+            $update = "db.getSiblingDB('admin').updateUser('" . self::ADMIN_USER
+                . "', {pwd: '{$escaped}'});";
+            $updateResult = $this->runtime->exec(['/usr/bin/mongosh', '--quiet', '--eval', $update], null, 120);
+
+            return $updateResult->ok();
+        }
+
+        $log->warn(trim($result->stderr . ' ' . $result->stdout));
+
+        return false;
+    }
+
+    private function anonymousPingOk(): bool
+    {
+        $result = $this->runtime->exec(
+            ['/usr/bin/mongosh', '--quiet', '--eval', 'db.adminCommand({ping:1})'],
+            null,
+            15
+        );
+
+        return $result->ok() && str_contains($result->stdout, 'ok');
+    }
+
+    /** @return list<string> */
+    private function mongoshAuthArgv(string $password, string $eval): array
+    {
+        return [
+            '/usr/bin/mongosh',
+            '--quiet',
+            '-u',
+            self::ADMIN_USER,
+            '-p',
+            $password,
+            '--authenticationDatabase',
+            'admin',
+            '--eval',
+            $eval,
+        ];
     }
 
     private function mongodConfPath(): ?string

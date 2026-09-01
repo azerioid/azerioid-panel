@@ -34,6 +34,13 @@ class ComponentsPage extends Component
 
     public string $nodeMajor = '22';
 
+    /** @var list<array<string, string>> */
+    public array $preflightRemediations = [];
+
+    public ?string $pendingPreflightComponent = null;
+
+    public string $pendingPreflightAction = '';
+
     public function mount(BrokerClient $broker): void
     {
         $this->reload($broker);
@@ -112,10 +119,17 @@ class ComponentsPage extends Component
         }
         $issues = $preflight->data['issues'] ?? [];
         if (is_array($issues) && $issues !== []) {
+            $this->preflightRemediations = is_array($preflight->data['remediations'] ?? null)
+                ? $preflight->data['remediations']
+                : [];
+            $this->pendingPreflightComponent = $componentId;
+            $this->pendingPreflightAction = 'install';
             $this->error = implode(' ', $issues);
 
             return;
         }
+        $this->preflightRemediations = [];
+        $this->pendingPreflightComponent = null;
 
         $operation = ComponentOperation::query()->create([
             'user_id' => Auth::id(),
@@ -134,6 +148,27 @@ class ComponentsPage extends Component
     {
         $this->flash = null;
         $this->error = null;
+        $this->preflightRemediations = [];
+        $this->pendingPreflightComponent = null;
+
+        $preflight = $broker->call('component.preflight', [$componentId]);
+        if (!$preflight->ok) {
+            $this->error = $preflight->error ?? 'Preflight check failed.';
+
+            return;
+        }
+        $issues = $preflight->data['issues'] ?? [];
+        if (is_array($issues) && $issues !== []) {
+            $this->preflightRemediations = is_array($preflight->data['remediations'] ?? null)
+                ? $preflight->data['remediations']
+                : [];
+            $this->pendingPreflightComponent = $componentId;
+            $this->pendingPreflightAction = 'adopt';
+            $this->error = implode(' ', $issues);
+
+            return;
+        }
+
         $response = $broker->call('component.adopt', [$componentId]);
         if (!$response->ok) {
             $this->error = $response->error ?? 'Adopt failed.';
@@ -145,6 +180,40 @@ class ComponentsPage extends Component
             ? "Adopted {$componentId}. {$note}"
             : "Adopted {$componentId} — now managed by the panel.";
         $this->reload($broker);
+    }
+
+    public function releaseSitePorts(BrokerClient $broker): void
+    {
+        $this->flash = null;
+        $this->error = null;
+        $response = $broker->call('web.release_site_ports');
+        if (!$response->ok) {
+            $this->error = $response->error ?? 'Could not release site ports from panel Caddy.';
+
+            return;
+        }
+        $port = (int) ($response->data['panel_port'] ?? 3169);
+        $this->flash = "Released :80/:443 from panel Caddy. Panel remains on port {$port}.";
+        $this->preflightRemediations = [];
+        $componentId = $this->pendingPreflightComponent;
+        $action = $this->pendingPreflightAction;
+        $this->pendingPreflightComponent = null;
+        $this->pendingPreflightAction = '';
+        $this->reload($broker);
+        if (is_string($componentId) && $componentId !== '') {
+            if ($action === 'adopt') {
+                $this->adopt($componentId, $broker);
+            } else {
+                $this->queueInstall($componentId, [], $broker);
+            }
+        }
+    }
+
+    public function dismissPreflightRemediation(): void
+    {
+        $this->preflightRemediations = [];
+        $this->pendingPreflightComponent = null;
+        $this->pendingPreflightAction = '';
     }
 
     public function askUninstall(string $componentId): void

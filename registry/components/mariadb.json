@@ -10,7 +10,7 @@
   "ports": [
     { "port": 3306, "bind": "127.0.0.1", "owner": "mariadb", "protocol": "tcp" }
   ],
-  "conflicts": ["postgresql"],
+  "conflicts": [],
   "distros": {
     "ubuntu": {
       "packages": ["mariadb-server"],

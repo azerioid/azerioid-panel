@@ -10,7 +10,7 @@
   "ports": [
     { "port": 5432, "bind": "127.0.0.1", "owner": "postgres", "protocol": "tcp" }
   ],
-  "conflicts": ["mariadb"],
+  "conflicts": [],
   "distros": {
     "ubuntu": {
       "packages": ["postgresql"],

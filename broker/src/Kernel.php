@@ -51,6 +51,7 @@ use AzerioidPanel\Broker\Actions\VersionAll;
 use AzerioidPanel\Broker\Actions\VhostAdd;
 use AzerioidPanel\Broker\Actions\VhostDel;
 use AzerioidPanel\Broker\Actions\VhostList;
+use AzerioidPanel\Broker\Actions\WebReleaseSitePorts;
 
 final class Kernel
 {
@@ -76,6 +77,7 @@ final class Kernel
         'vhost.del' => VhostDel::class,
         'caddy.apply' => CaddyApplyConfig::class,
         'web.reload' => CaddyApplyConfig::class,
+        'web.release_site_ports' => WebReleaseSitePorts::class,
         'db.list' => DbList::class,
         'db.add' => DbAdd::class,
         'db.del' => DbDel::class,

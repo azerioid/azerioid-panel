@@ -66,7 +66,7 @@ EOF
     install -d -m 0755 "/etc/systemd/system/${unit}.service.d"
     cat > "/etc/systemd/system/${unit}.service.d/azerioid-panel.conf" <<EOF
 [Service]
-ReadWritePaths=${PREFIX}/web/storage ${PREFIX}/web/bootstrap/cache /var/log/azerioid-panel
+ReadWritePaths=${PREFIX}/web/storage ${PREFIX}/web/bootstrap/cache /var/log/azerioid-panel /var/lib/azerioid-panel
 EOF
     systemctl daemon-reload
     systemctl enable --now "${unit}"

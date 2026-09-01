@@ -38,6 +38,10 @@ final class PortOwnership
 
     private function caddyOwnsSitePorts(): bool
     {
+        if (in_array($this->config->siteWebServer, ['panel-only', 'none', ''], true)) {
+            return $this->listeningOnPort(80) && $this->caddyProcessOwnsPort(80);
+        }
+
         if ($this->config->siteWebServer === 'caddy') {
             return true;
         }
