@@ -164,13 +164,15 @@ final class MongoProvisioner
 
     private function anonymousPingOk(): bool
     {
+        // ping succeeds without credentials on localhost even when auth is enabled;
+        // use a command that always requires authentication.
         $result = $this->runtime->exec(
-            ['/usr/bin/mongosh', '--quiet', '--eval', 'db.adminCommand({ping:1})'],
+            ['/usr/bin/mongosh', '--quiet', '--eval', 'db.adminCommand({listDatabases:1})'],
             null,
             15
         );
 
-        return $result->ok() && str_contains($result->stdout, 'ok');
+        return $result->ok() && str_contains($result->stdout, 'databases');
     }
 
     /** @return list<string> */

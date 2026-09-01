@@ -232,16 +232,18 @@ final class DatabaseProvisioner
 
     private function provisionPostgreSqlAdmin(string $password, OperationLogger $log): void
     {
+        $wrapper = $this->runAsWrapper('postgres');
+        if ($wrapper === null) {
+            throw new BrokerException('Cannot run commands as postgres user.', 1);
+        }
+
         $escaped = SqlIdent::escapeLiteral($password);
         $sql = "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '"
             . self::ADMIN_USER . "') THEN CREATE ROLE " . self::ADMIN_USER
             . " WITH LOGIN PASSWORD '{$escaped}' CREATEDB CREATEROLE; END IF; END \$\$;";
         $log->info('PostgreSQL admin setup');
         $result = $this->runtime->exec([
-            '/usr/bin/runuser',
-            '-u',
-            'postgres',
-            '--',
+            ...$wrapper,
             '/usr/bin/psql',
             '-v',
             'ON_ERROR_STOP=1',
@@ -251,6 +253,21 @@ final class DatabaseProvisioner
         if (!$result->ok()) {
             throw new BrokerException('Failed to create PostgreSQL panel admin user.', 1);
         }
+    }
+
+    /** @return list<string>|null */
+    private function runAsWrapper(string $user): ?array
+    {
+        foreach (['/usr/sbin/runuser', '/sbin/runuser', '/usr/bin/runuser'] as $bin) {
+            if ($this->runtime->fileExists($bin)) {
+                return [$bin, '-u', $user, '--'];
+            }
+        }
+        if ($this->runtime->fileExists('/usr/bin/sudo')) {
+            return ['/usr/bin/sudo', '-n', '-u', $user, '--'];
+        }
+
+        return null;
     }
 
     private function detectMariaSocket(): string
