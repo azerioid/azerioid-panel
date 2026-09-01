@@ -116,6 +116,8 @@ install_panel_app() {
     run_as_web "${PHP_BIN} ${COMPOSER_BIN} dump-autoload -o --no-interaction --no-scripts"
     rm -rf "${COMPOSER_HOME}"
 
+    configure_panel_db
+
     if ! grep -q '^APP_KEY=base64:' "${PREFIX}/web/.env"; then
         run_as_web "${PHP_BIN} artisan key:generate --force --no-interaction"
     fi
