@@ -53,13 +53,6 @@ final class ComponentAdopter
         $distro = $definition['distros'][$os->distroKey];
         $unit = trim((string) ($distro['unit_name'] ?? ''));
 
-        ManagedManifest::record($this->runtime, $this->config->managedComponentsPath, $componentId, [
-            'unit' => $unit,
-            'packages' => is_array($distro['packages'] ?? null) ? $distro['packages'] : [],
-            'adopted_at' => $this->runtime->now(),
-            'adopted' => true,
-        ]);
-
         if (in_array($componentId, ['nginx', 'apache', 'caddy'], true)) {
             SiteWebConfig::apply($this->runtime, $this->config, $componentId, $os);
         }
@@ -70,6 +63,13 @@ final class ComponentAdopter
             $logPath = rtrim($this->config->stagingDir, '/') . '/adopt-mongodb.log';
             (new MongoProvisioner($this->config, $this->runtime))->provision(new OperationLogger($this->runtime, $logPath));
         }
+
+        ManagedManifest::record($this->runtime, $this->config->managedComponentsPath, $componentId, [
+            'unit' => $unit,
+            'packages' => is_array($distro['packages'] ?? null) ? $distro['packages'] : [],
+            'adopted_at' => $this->runtime->now(),
+            'adopted' => true,
+        ]);
 
         $updated = (new ComponentCatalog($this->config, $this->runtime))->status($componentId);
 

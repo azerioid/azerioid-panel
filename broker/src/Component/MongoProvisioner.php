@@ -49,7 +49,7 @@ final class MongoProvisioner
         $this->runtime->writeFile($confPath, $content, 0644);
         $this->restartMongod($log);
 
-        if (!$this->waitForMongo(true, $password)) {
+        if (!$this->waitForMongo(true, $password, 60)) {
             throw new BrokerException('MongoDB did not accept admin credentials after enabling auth.', 1);
         }
 
@@ -103,9 +103,9 @@ final class MongoProvisioner
         $log->info('Restarted mongod.');
     }
 
-    private function waitForMongo(bool $withAuth, string $password = ''): bool
+    private function waitForMongo(bool $withAuth, string $password = '', int $attempts = 30): bool
     {
-        for ($i = 0; $i < 30; $i++) {
+        for ($i = 0; $i < $attempts; $i++) {
             if ($withAuth) {
                 $result = $this->runtime->exec(
                     $this->mongoshAuthArgv($password, "db.adminCommand({ping:1})"),
