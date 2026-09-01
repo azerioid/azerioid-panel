@@ -47,9 +47,15 @@ configure_panel_caddy() {
     [[ "${SKIP_CADDY:-0}" -eq 0 ]] || { echo "Caddy snippet skipped"; return 0; }
     echo "==> Configuring panel Caddy vhost on 127.0.0.1:${PANEL_PORT}"
 
-    install -d -m 0755 -o "${WEB_USER}" -g "${WEB_USER}" /var/log/caddy
+    local caddy_user="${WEB_USER}"
+    if command -v systemctl >/dev/null 2>&1; then
+        caddy_user="$(systemctl show caddy -p User --value 2>/dev/null || true)"
+        [[ -n "${caddy_user}" && "${caddy_user}" != "root" ]] || caddy_user="${WEB_USER}"
+    fi
+
+    install -d -m 0755 -o "${caddy_user}" -g "${caddy_user}" /var/log/caddy
     touch /var/log/caddy/access_azerioid-panel.log
-    chown "${WEB_USER}:${WEB_USER}" /var/log/caddy/access_azerioid-panel.log
+    chown "${caddy_user}:${caddy_user}" /var/log/caddy/access_azerioid-panel.log
     chmod 0640 /var/log/caddy/access_azerioid-panel.log
     chmod 0755 /var/log/caddy
 

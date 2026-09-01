@@ -211,14 +211,15 @@ final class CaddyDriver implements WebServerDriver
     {
         $dir = '/var/log/caddy';
         $path = $dir . '/access_' . $domain . '.log';
+        $user = CaddyCli::serviceUser($runtime) ?? $config->webUser;
         if (!$runtime->isDir($dir)) {
             $runtime->mkdir($dir, 0755);
         }
-        $runtime->chown($dir, $config->webUser, $config->webUser);
+        $runtime->chown($dir, $user, $user);
         if (!$runtime->fileExists($path)) {
             $runtime->writeFile($path, '', 0640);
         }
-        $runtime->chown($path, $config->webUser, $config->webUser);
+        $runtime->chown($path, $user, $user);
         $runtime->chmod($path, 0640);
     }
 
