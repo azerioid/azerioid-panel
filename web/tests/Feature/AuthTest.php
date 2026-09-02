@@ -132,6 +132,28 @@ class AuthTest extends TestCase
             ->assertRedirect(route('dashboard'));
     }
 
+    public function test_login_is_password_only_when_totp_not_required_even_if_user_enrolled(): void
+    {
+        config(['azerioid.require_totp' => false]);
+        $secret = 'JBSWY3DPEHPK3PXP';
+        $user = User::factory()->create([
+            'email' => 'enrolled@example.com',
+            'password' => 'password',
+            'two_factor_secret' => Crypt::encryptString($secret),
+            'two_factor_confirmed_at' => now(),
+        ]);
+
+        Livewire::test(\App\Livewire\Auth\Login::class)
+            ->set('email', $user->email)
+            ->set('password', 'password')
+            ->call('authenticate')
+            ->assertRedirect(route('dashboard'));
+
+        $this->withSession(['login.id' => $user->id])
+            ->get('/two-factor/challenge')
+            ->assertRedirect(route('dashboard'));
+    }
+
     public function test_login_sends_unenrolled_user_to_setup_when_totp_required(): void
     {
         config(['azerioid.require_totp' => true]);

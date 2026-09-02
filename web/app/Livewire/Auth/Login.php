@@ -66,7 +66,7 @@ class Login extends Component
         RateLimiter::clear($key);
         $user->forceFill(['failed_logins' => 0, 'locked_until' => null])->save();
 
-        if ($user->hasTwoFactorEnabled()) {
+        if (config('azerioid.require_totp') && $user->hasTwoFactorEnabled()) {
             session(['login.id' => $user->id]);
             $this->redirectRoute('two-factor.challenge', navigate: true);
 
