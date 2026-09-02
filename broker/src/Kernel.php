@@ -50,6 +50,7 @@ use AzerioidPanel\Broker\Actions\UpdatesList;
 use AzerioidPanel\Broker\Actions\VersionAll;
 use AzerioidPanel\Broker\Actions\VhostAdd;
 use AzerioidPanel\Broker\Actions\VhostDel;
+use AzerioidPanel\Broker\Actions\VhostEdit;
 use AzerioidPanel\Broker\Actions\VhostList;
 use AzerioidPanel\Broker\Actions\WebReleaseSitePorts;
 
@@ -74,6 +75,7 @@ final class Kernel
         'service.restart' => ServiceControl::class,
         'vhost.list' => VhostList::class,
         'vhost.add' => VhostAdd::class,
+        'vhost.edit' => VhostEdit::class,
         'vhost.del' => VhostDel::class,
         'caddy.apply' => CaddyApplyConfig::class,
         'web.reload' => CaddyApplyConfig::class,

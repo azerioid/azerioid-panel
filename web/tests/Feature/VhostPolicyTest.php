@@ -139,6 +139,63 @@ class VhostPolicyTest extends TestCase
         $this->assertNotContains('shop.example.com', array_column($this->app->make(FakeBroker::class)->vhosts, 'domain'));
     }
 
+    public function test_editable_vhost_can_be_updated_from_ui(): void
+    {
+        $this->actingAs($this->admin());
+        $fake = $this->app->make(FakeBroker::class);
+        Livewire::test(\App\Livewire\VhostsPage::class)
+            ->set('domain', 'shop.example.com')
+            ->set('root', '/data/www/shop.example.com')
+            ->set('type', 'php')
+            ->set('php_version', '8.4')
+            ->call('create')
+            ->assertSet('error', null);
+
+        Livewire::test(\App\Livewire\VhostsPage::class)
+            ->call('startEdit', 'shop.example.com')
+            ->assertSet('editingDomain', 'shop.example.com')
+            ->set('editRoot', '/data/www/shop-moved.example.com')
+            ->set('editTls', true)
+            ->call('saveEdit')
+            ->assertSet('error', null)
+            ->assertSet('flash', 'Updated shop.example.com.');
+
+        $row = collect($fake->vhosts)->firstWhere('domain', 'shop.example.com');
+        $this->assertSame('/data/www/shop-moved.example.com', $row['root']);
+        $this->assertTrue($row['tls']);
+    }
+
+    public function test_readonly_vhost_cannot_be_edited_from_ui(): void
+    {
+        $this->actingAs($this->admin());
+        Livewire::test(\App\Livewire\VhostsPage::class)
+            ->call('startEdit', 'projob.az')
+            ->assertSet('editingDomain', null)
+            ->assertSet('error', 'This vhost cannot be edited.');
+    }
+
+    public function test_failed_edit_validate_does_not_mutate_vhost(): void
+    {
+        $this->actingAs($this->admin());
+        $fake = $this->app->make(FakeBroker::class);
+        Livewire::test(\App\Livewire\VhostsPage::class)
+            ->set('domain', 'shop.example.com')
+            ->set('root', '/data/www/shop.example.com')
+            ->set('type', 'php')
+            ->set('php_version', '8.4')
+            ->call('create');
+
+        $fake->failNextValidate = true;
+        Livewire::test(\App\Livewire\VhostsPage::class)
+            ->call('startEdit', 'shop.example.com')
+            ->set('editRoot', '/data/www/evil-mutate.example.com')
+            ->call('saveEdit')
+            ->assertSet('error', 'Caddy rejected the edit; the file was rolled back.');
+
+        $row = collect($fake->vhosts)->firstWhere('domain', 'shop.example.com');
+        $this->assertSame('/data/www/shop.example.com', $row['root']);
+    }
+
     public function test_sql_injection_db_name_rejected(): void
     {
         $this->actingAs($this->admin());

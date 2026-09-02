@@ -153,6 +153,87 @@ final class CaddyDriver implements WebServerDriver
         ];
     }
 
+    public function updateVhost(Runtime $runtime, Config $config, string $domain, array $changes): array
+    {
+        $confPath = $this->resolveConfPath($runtime, $config, $domain);
+        if ($confPath === null) {
+            throw new BrokerException('Vhost config does not exist.', 3);
+        }
+        $oldContents = $runtime->readFile($confPath);
+        $parsed = CaddyParser::parseFile($confPath, $oldContents, $config->readonlyVhosts);
+        if ($parsed['readonly']) {
+            throw new BrokerException('This vhost is managed externally and cannot be edited by the panel.', 3);
+        }
+
+        $before = $this->editSnapshot($parsed);
+        $spec = $this->mergeEditSpec($runtime, $config, $domain, $parsed, $changes);
+
+        $this->assertCaddyfile($runtime, $config);
+        $newContents = $this->render(
+            $runtime,
+            $config,
+            $domain,
+            $spec['root'],
+            $spec['type'],
+            $spec['php_version'],
+            $spec['upstream'],
+            $spec['tls']
+        );
+
+        $tmp = $confPath . '.lacmp-tmp';
+        $runtime->writeFile($tmp, $newContents, 0644);
+        try {
+            $runtime->rename($tmp, $confPath);
+        } catch (BrokerException $e) {
+            $runtime->deleteFile($tmp);
+            throw $e;
+        }
+
+        $validate = CaddyCli::validate($runtime, $config, $this->mainConfigPath($config));
+        if (!$validate->ok()) {
+            $runtime->writeFile($confPath, $oldContents, 0644);
+            $detail = trim($validate->stderr . "\n" . $validate->stdout);
+            $detail = preg_replace('#/etc/caddy/conf\.d/[^\s:]+#', 'the vhost file', $detail) ?? $detail;
+            throw new BrokerException(
+                'Caddy rejected the config: ' . ($detail !== '' ? $detail : 'validation failed') . ' The edit was rolled back.',
+                1
+            );
+        }
+
+        try {
+            $applied = CaddyApply::run($runtime, $config, 'auto');
+        } catch (BrokerException $e) {
+            $runtime->writeFile($confPath, $oldContents, 0644);
+            try {
+                CaddyApply::run($runtime, $config, 'auto');
+            } catch (BrokerException) {
+            }
+            throw new BrokerException(
+                'Caddy could not apply the edit; the prior config was restored. Existing sites were left serving. ' . $e->getMessage(),
+                1
+            );
+        }
+
+        $after = $this->editSnapshot(array_merge($parsed, [
+            'root' => $spec['root'],
+            'php_version' => $spec['php_version'],
+            'tls' => $spec['tls'],
+            'type' => $spec['type'],
+        ]));
+
+        return [
+            'domain' => $domain,
+            'before' => $before,
+            'after' => $after,
+            'root' => $spec['root'],
+            'type' => $spec['type'],
+            'php_version' => $spec['php_version'],
+            'tls' => $spec['tls'],
+            'source' => $confPath,
+            'apply' => $applied,
+        ];
+    }
+
     public function reload(Runtime $runtime, Config $config, string $mode = 'auto', array $expectPorts = []): array
     {
         return CaddyApply::run($runtime, $config, $mode, $expectPorts);
@@ -231,7 +312,9 @@ final class CaddyDriver implements WebServerDriver
         string $type,
         ?string $phpVersion,
         ?string $upstream,
+        bool $tls = true,
     ): string {
+        $siteLabel = $tls ? $domain : "http://{$domain}";
         $phpBlock = '';
         $proxyBlock = '';
         if ($type === 'php' && $phpVersion !== null) {
@@ -245,7 +328,7 @@ final class CaddyDriver implements WebServerDriver
         $fileServer = $type === 'proxy' ? '' : "    file_server {\n        index index.html index.php\n    }\n";
 
         return <<<EOF
-{$domain} {
+{$siteLabel} {
     header {
         Strict-Transport-Security "max-age=31536000; preload"
         X-Content-Type-Options nosniff
@@ -262,5 +345,63 @@ final class CaddyDriver implements WebServerDriver
 }
 
 EOF;
+    }
+
+    /** @return array{root:string,type:string,php_version:?string,upstream:?string,tls:bool} */
+    private function mergeEditSpec(Runtime $runtime, Config $config, string $domain, array $parsed, array $changes): array
+    {
+        $type = (string) ($parsed['type'] ?? 'static');
+        $root = (string) ($changes['root'] ?? ($parsed['root'] ?? ''));
+        if ($root === '' && $type !== 'proxy') {
+            throw new BrokerException('Docroot is required for this vhost.', 2);
+        }
+        if (isset($changes['root']) && $root !== '' && !$runtime->isDir($root)) {
+            $runtime->mkdir($root, 0755);
+            $runtime->chown($root, $config->phpUser, $config->phpGroup);
+        }
+        if ($type === 'php' && isset($changes['php_version'])) {
+            $phpVersion = $changes['php_version'];
+        } else {
+            $phpVersion = $parsed['php_version'] ?? null;
+        }
+        if ($type === 'php' && ($phpVersion === null || $phpVersion === '')) {
+            throw new BrokerException('php_version is required for PHP vhosts.', 2);
+        }
+        $tls = array_key_exists('tls', $changes) ? (bool) $changes['tls'] : (bool) ($parsed['tls'] ?? true);
+        $upstream = $parsed['reverse_proxy'] ?? null;
+
+        return [
+            'root' => $root,
+            'type' => $type,
+            'php_version' => $type === 'php' ? $phpVersion : null,
+            'upstream' => $type === 'proxy' ? $upstream : null,
+            'tls' => $tls,
+        ];
+    }
+
+    /** @return array{root:?string,php_version:?string,tls:bool,type:string} */
+    private function editSnapshot(array $parsed): array
+    {
+        return [
+            'root' => $parsed['root'] ?? null,
+            'php_version' => $parsed['php_version'] ?? null,
+            'tls' => (bool) ($parsed['tls'] ?? false),
+            'type' => (string) ($parsed['type'] ?? 'static'),
+        ];
+    }
+
+    private function resolveConfPath(Runtime $runtime, Config $config, string $domain): ?string
+    {
+        $direct = rtrim($config->caddyConfD, '/') . '/' . $domain . '.conf';
+        if ($runtime->fileExists($direct)) {
+            return $direct;
+        }
+        foreach ($this->listVhosts($runtime, $config) as $parsed) {
+            if (($parsed['domain'] ?? '') === $domain || in_array($domain, $parsed['domains'] ?? [], true)) {
+                return (string) ($parsed['source'] ?? '');
+            }
+        }
+
+        return null;
     }
 }

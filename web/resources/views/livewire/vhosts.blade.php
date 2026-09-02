@@ -45,6 +45,37 @@
         </form>
     @endif
 
+    @if ($editingDomain)
+        <form wire:submit="saveEdit" class="panel grid gap-4 p-5 md:grid-cols-2">
+            <p class="md:col-span-2 text-sm text-zinc-400">
+                Editing <span class="font-mono text-zinc-200">{{ $editingDomain }}</span>
+                ({{ $editType }}) — domain and type are fixed.
+            </p>
+            @if ($editType !== 'proxy')
+                <label class="text-xs uppercase tracking-wide text-zinc-500">Web root
+                    <input class="field mt-1" wire:model="editRoot" required>
+                </label>
+            @endif
+            @if ($editType === 'php')
+                <label class="text-xs uppercase tracking-wide text-zinc-500">PHP version
+                    <select class="field mt-1" wire:model="editPhpVersion">
+                        @foreach ($phpVersions as $ver)
+                            <option value="{{ $ver }}">{{ $ver }}</option>
+                        @endforeach
+                    </select>
+                </label>
+            @endif
+            <label class="flex items-center gap-2 text-xs uppercase tracking-wide text-zinc-500 md:col-span-2">
+                <input type="checkbox" class="rounded border-white/10 bg-ink-800" wire:model="editTls">
+                Enable TLS (HTTPS)
+            </label>
+            <div class="flex gap-3 md:col-span-2">
+                <button class="btn-primary" type="submit">Validate &amp; save</button>
+                <button type="button" class="btn-ghost" wire:click="cancelEdit">Cancel</button>
+            </div>
+        </form>
+    @endif
+
     <div class="panel overflow-x-auto">
         <table class="w-full text-left text-sm">
             <thead class="font-mono text-[11px] uppercase tracking-wide text-zinc-500">
@@ -73,8 +104,9 @@
                         <td class="px-4 py-3 font-mono text-xs text-zinc-400">{{ $v['reverse_proxy'] ?? $v['root'] }}</td>
                         <td class="px-4 py-3 font-mono">{{ $v['php_version'] ?? '—' }}</td>
                         <td class="px-4 py-3">{{ !empty($v['tls']) ? 'yes' : 'http' }}</td>
-                        <td class="px-4 py-3 text-right">
+                        <td class="px-4 py-3 text-right space-x-3">
                             @if (empty($v['readonly']))
+                                <button type="button" class="text-xs text-accent" wire:click="startEdit('{{ $v['domain'] }}')">Edit</button>
                                 <button type="button" class="text-xs text-bad" wire:click="delete('{{ $v['domain'] }}')" wire:confirm="Delete vhost {{ $v['domain'] }}? Files will be kept.">Delete</button>
                             @endif
                         </td>

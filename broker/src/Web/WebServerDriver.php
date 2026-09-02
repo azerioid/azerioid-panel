@@ -25,6 +25,12 @@ interface WebServerDriver
     public function removeVhost(Runtime $runtime, Config $config, string $domain): array;
 
     /**
+     * @param  array{root?:string,php_version?:string,tls?:bool}  $changes
+     * @return array<string,mixed>
+     */
+    public function updateVhost(Runtime $runtime, Config $config, string $domain, array $changes): array;
+
+    /**
      * @param  list<int>  $expectPorts
      * @return array<string,mixed>
      */

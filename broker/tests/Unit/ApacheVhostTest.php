@@ -122,4 +122,49 @@ final class ApacheVhostTest extends TestCase
         $this->assertFalse($byDomain['idle.example.com']['enabled']);
         $this->assertFalse($byDomain['idle.example.com']['readonly']);
     }
+
+    public function test_edits_apache_php_vhost(): void
+    {
+        $rt = $this->runtime();
+        $rt->files['/etc/apache2/sites-available/shop.example.com.conf'] = "<VirtualHost *:80>\n    ServerName shop.example.com\n    DocumentRoot /data/www/shop.example.com\n    <FilesMatch \\.php\$>\n        SetHandler \"proxy:unix:/run/php/php8.4-fpm.sock|fcgi://localhost\"\n    </FilesMatch>\n</VirtualHost>\n";
+        $rt->files['/etc/apache2/sites-enabled/shop.example.com.conf'] = $rt->files['/etc/apache2/sites-available/shop.example.com.conf'];
+        $rt->dirs['/data/www/shop.example.com'] = true;
+        $kernel = new Kernel($this->lampConfig(), $rt);
+
+        ob_start();
+        $code = $kernel->run(
+            ['broker', 'vhost.edit', 'shop.example.com'],
+            ['php_version' => '8.3', 'tls' => true]
+        );
+        $out = ob_get_clean();
+
+        $this->assertSame(0, $code, $out);
+        $conf = $rt->files['/etc/apache2/sites-available/shop.example.com.conf'];
+        $this->assertStringContainsString('php8.3-fpm.sock', $conf);
+        $this->assertStringContainsString('SSLEngine on', $conf);
+        $decoded = json_decode($out, true);
+        $this->assertSame('8.4', $decoded['data']['before']['php_version']);
+        $this->assertSame('8.3', $decoded['data']['after']['php_version']);
+    }
+
+    public function test_apache_edit_rolls_back_on_configtest_failure(): void
+    {
+        $rt = $this->runtime();
+        $original = "<VirtualHost *:80>\n    ServerName shop.example.com\n    DocumentRoot /data/www/shop.example.com\n</VirtualHost>\n";
+        $rt->files['/etc/apache2/sites-available/shop.example.com.conf'] = $original;
+        $rt->files['/etc/apache2/sites-enabled/shop.example.com.conf'] = $original;
+        $rt->script(['/usr/sbin/apachectl', '-t'], 1, '', 'Syntax error');
+        $kernel = new Kernel($this->lampConfig(), $rt);
+
+        ob_start();
+        $code = $kernel->run(
+            ['broker', 'vhost.edit', 'shop.example.com'],
+            ['root' => '/data/www/shop-moved.example.com']
+        );
+        $out = ob_get_clean();
+
+        $this->assertNotSame(0, $code);
+        $this->assertSame($original, $rt->files['/etc/apache2/sites-available/shop.example.com.conf']);
+        $this->assertStringContainsString('restored', $out);
+    }
 }

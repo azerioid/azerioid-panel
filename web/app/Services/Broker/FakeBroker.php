@@ -111,6 +111,7 @@ final class FakeBroker
                 'service.start', 'service.stop', 'service.restart' => ['unit' => $args[0] ?? '', 'action' => explode('.', $action)[1], 'status' => $this->svc($args[0] ?? 'caddy')],
                 'vhost.list' => ['vhosts' => $this->vhosts],
                 'vhost.add' => $this->vhostAdd($args, $stdin),
+                'vhost.edit' => $this->vhostEdit($args, $stdin),
                 'vhost.del' => $this->vhostDel($args),
                 'db.list' => ['engine' => $this->databaseEngine, 'databases' => $this->databases],
                 'db.engine' => $this->dbEngine(),
@@ -329,6 +330,63 @@ final class FakeBroker
         ];
         $this->vhosts[] = $row;
         return $row;
+    }
+
+    /**
+     * @param  array<string,mixed>  $stdin
+     * @return array<string,mixed>
+     */
+    private function vhostEdit(array $args, array $stdin): array
+    {
+        if ($this->failNextValidate) {
+            $this->failNextValidate = false;
+            throw new BrokerCallException('Caddy rejected the edit; the file was rolled back.', 1);
+        }
+        $domain = (string) ($args[0] ?? ($stdin['domain'] ?? ''));
+        foreach ($this->vhosts as $i => $v) {
+            if (($v['domain'] ?? '') !== $domain) {
+                continue;
+            }
+            if (! empty($v['readonly'])) {
+                throw new BrokerCallException('This vhost is managed externally and cannot be edited by the panel.', 3);
+            }
+            $before = [
+                'root' => $v['root'] ?? null,
+                'php_version' => $v['php_version'] ?? null,
+                'tls' => (bool) ($v['tls'] ?? false),
+                'type' => $v['type'] ?? 'static',
+            ];
+            if (isset($stdin['root'])) {
+                $v['root'] = (string) $stdin['root'];
+            }
+            if (isset($stdin['php_version'])) {
+                $v['php_version'] = (string) $stdin['php_version'];
+                $v['php_socket'] = 'unix//run/php/php'.($stdin['php_version']).'-fpm.sock';
+            }
+            if (array_key_exists('tls', $stdin)) {
+                $v['tls'] = (bool) $stdin['tls'];
+            }
+            $after = [
+                'root' => $v['root'] ?? null,
+                'php_version' => $v['php_version'] ?? null,
+                'tls' => (bool) ($v['tls'] ?? false),
+                'type' => $v['type'] ?? 'static',
+            ];
+            $this->vhosts[$i] = $v;
+
+            return [
+                'domain' => $domain,
+                'before' => $before,
+                'after' => $after,
+                'root' => $v['root'],
+                'type' => $v['type'],
+                'php_version' => $v['php_version'] ?? null,
+                'tls' => (bool) ($v['tls'] ?? false),
+                'source' => $v['source'],
+                'apply' => ['path' => 'restart', 'address' => '', 'admin_spec' => 'n/a', 'admin_enabled' => false],
+            ];
+        }
+        throw new BrokerCallException('Vhost config does not exist.', 3);
     }
 
     private function vhostDel(array $args): array

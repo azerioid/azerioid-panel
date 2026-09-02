@@ -170,6 +170,75 @@ final class NginxDriver implements WebServerDriver
         ];
     }
 
+    public function updateVhost(Runtime $runtime, Config $config, string $domain, array $changes): array
+    {
+        $confPath = $this->existingPath($runtime, $config, $domain);
+        if ($confPath === null) {
+            throw new BrokerException('Vhost config does not exist.', 3);
+        }
+        $oldContents = $runtime->readFile($confPath);
+        $parsed = NginxParser::parseFile($confPath, $oldContents, $config->readonlyVhosts);
+        if ($parsed['readonly']) {
+            throw new BrokerException('This vhost is managed externally and cannot be edited by the panel.', 3);
+        }
+
+        $before = $this->editSnapshot($parsed);
+        $spec = $this->mergeEditSpec($runtime, $config, $parsed, $changes);
+        $newContents = $this->render(
+            $runtime,
+            $config,
+            $domain,
+            $spec['root'],
+            $spec['type'],
+            $spec['php_version'],
+            $spec['upstream'],
+            $spec['tls']
+        );
+
+        $tmp = $confPath . '.lacmp-tmp';
+        $runtime->writeFile($tmp, $newContents, 0644);
+        try {
+            $runtime->rename($tmp, $confPath);
+        } catch (BrokerException $e) {
+            $runtime->deleteFile($tmp);
+            throw $e;
+        }
+
+        try {
+            $this->validate($runtime);
+            $applied = $this->reload($runtime, $config, 'auto');
+        } catch (BrokerException $e) {
+            $runtime->writeFile($confPath, $oldContents, 0644);
+            try {
+                $this->reload($runtime, $config, 'auto');
+            } catch (BrokerException) {
+            }
+            throw new BrokerException(
+                'Nginx rejected the edit; the prior config was restored. Existing sites were left serving. ' . $e->getMessage(),
+                1
+            );
+        }
+
+        $after = $this->editSnapshot(array_merge($parsed, [
+            'root' => $spec['root'],
+            'php_version' => $spec['php_version'],
+            'tls' => $spec['tls'],
+            'type' => $spec['type'],
+        ]));
+
+        return [
+            'domain' => $domain,
+            'before' => $before,
+            'after' => $after,
+            'root' => $spec['root'],
+            'type' => $spec['type'],
+            'php_version' => $spec['php_version'],
+            'tls' => $spec['tls'],
+            'source' => $confPath,
+            'apply' => $applied,
+        ];
+    }
+
     public function reload(Runtime $runtime, Config $config, string $mode = 'auto', array $expectPorts = []): array
     {
         $this->validate($runtime);
@@ -382,6 +451,7 @@ final class NginxDriver implements WebServerDriver
         string $type,
         ?string $phpVersion,
         ?string $upstream,
+        bool $tls = false,
     ): string {
         $logs = rtrim($config->webLogDir, '/');
         $location = '';
@@ -419,7 +489,7 @@ PROXY;
 STATIC;
         }
 
-        return <<<EOF
+        $http = <<<EOF
 server {
     listen 80;
     listen [::]:80;
@@ -432,5 +502,70 @@ server {
 }
 
 EOF;
+
+        if (!$tls) {
+            return $http;
+        }
+
+        $ssl = <<<EOF
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name {$domain};
+    root {$root};
+    index index.php index.html;
+    ssl_certificate /etc/ssl/certs/ssl-cert-snakeoil.pem;
+    ssl_certificate_key /etc/ssl/private/ssl-cert-snakeoil.key;
+
+{$location}    access_log {$logs}/{$domain}-ssl-access.log;
+    error_log {$logs}/{$domain}-ssl-error.log;
+}
+
+EOF;
+
+        return $http . $ssl;
+    }
+
+    /** @return array{root:string,type:string,php_version:?string,upstream:?string,tls:bool} */
+    private function mergeEditSpec(Runtime $runtime, Config $config, array $parsed, array $changes): array
+    {
+        $type = (string) ($parsed['type'] ?? 'static');
+        $root = (string) ($changes['root'] ?? ($parsed['root'] ?? ''));
+        if ($root === '' && $type !== 'proxy') {
+            throw new BrokerException('Docroot is required for this vhost.', 2);
+        }
+        if (isset($changes['root']) && $root !== '' && !$runtime->isDir($root)) {
+            $runtime->mkdir($root, 0755);
+            $runtime->chown($root, $config->phpUser, $config->phpGroup);
+        }
+        if ($type === 'php' && isset($changes['php_version'])) {
+            $phpVersion = $changes['php_version'];
+        } else {
+            $phpVersion = $parsed['php_version'] ?? null;
+        }
+        if ($type === 'php' && ($phpVersion === null || $phpVersion === '')) {
+            throw new BrokerException('php_version is required for PHP vhosts.', 2);
+        }
+        $tls = array_key_exists('tls', $changes) ? (bool) $changes['tls'] : (bool) ($parsed['tls'] ?? false);
+        $upstream = $parsed['reverse_proxy'] ?? null;
+
+        return [
+            'root' => $root,
+            'type' => $type,
+            'php_version' => $type === 'php' ? $phpVersion : null,
+            'upstream' => $type === 'proxy' ? $upstream : null,
+            'tls' => $tls,
+        ];
+    }
+
+    /** @return array{root:?string,php_version:?string,tls:bool,type:string} */
+    private function editSnapshot(array $parsed): array
+    {
+        return [
+            'root' => $parsed['root'] ?? null,
+            'php_version' => $parsed['php_version'] ?? null,
+            'tls' => (bool) ($parsed['tls'] ?? false),
+            'type' => (string) ($parsed['type'] ?? 'static'),
+        ];
     }
 }

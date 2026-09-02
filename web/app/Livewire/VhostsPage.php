@@ -10,7 +10,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Virtual hosts · LACMP Panel')]
+#[Title('Virtual hosts · Stack Manager')]
 class VhostsPage extends Component
 {
     public array $vhosts = [];
@@ -24,6 +24,12 @@ class VhostsPage extends Component
     public ?string $flash = null;
     public ?string $confirmDelete = null;
     public bool $showForm = false;
+
+    public ?string $editingDomain = null;
+    public string $editRoot = '';
+    public string $editPhpVersion = '';
+    public bool $editTls = false;
+    public string $editType = 'php';
 
     public function mount(BrokerClient $broker): void
     {
@@ -57,10 +63,65 @@ class VhostsPage extends Component
             $res = $broker->call('vhost.add', $args);
             if (! $res->ok) {
                 $this->error = $this->operatorMessage((string) $res->error);
+
                 return;
             }
             $this->flash = "Created {$domain}.";
             $this->reset('domain', 'root', 'type', 'upstream', 'showForm');
+            $this->reload($broker);
+        } catch (\Throwable $e) {
+            $this->error = $this->operatorMessage($e->getMessage());
+        }
+    }
+
+    public function startEdit(string $domain): void
+    {
+        $this->error = null;
+        $this->showForm = false;
+        foreach ($this->vhosts as $v) {
+            if (($v['domain'] ?? '') !== $domain || ! empty($v['readonly'])) {
+                continue;
+            }
+            $this->editingDomain = $domain;
+            $this->editType = (string) ($v['type'] ?? 'php');
+            $this->editRoot = (string) ($v['root'] ?? '');
+            $this->editPhpVersion = (string) ($v['php_version'] ?? $this->php_version);
+            $this->editTls = ! empty($v['tls']);
+
+            return;
+        }
+        $this->error = 'This vhost cannot be edited.';
+    }
+
+    public function cancelEdit(): void
+    {
+        $this->reset('editingDomain', 'editRoot', 'editPhpVersion', 'editTls', 'editType');
+    }
+
+    public function saveEdit(BrokerClient $broker): void
+    {
+        if ($this->editingDomain === null) {
+            return;
+        }
+        $this->error = null;
+        try {
+            $domain = Validator::domain($this->editingDomain);
+            $payload = [
+                'domain' => $domain,
+                'root' => Validator::webRoot($this->editRoot, (string) config('azerioid.www_root'), new \AzerioidPanel\Broker\FakeRuntime()),
+                'tls' => $this->editTls,
+            ];
+            if ($this->editType === 'php') {
+                $payload['php_version'] = Validator::phpVersion($this->editPhpVersion, $this->phpVersions);
+            }
+            $res = $broker->call('vhost.edit', [$domain], $payload);
+            if (! $res->ok) {
+                $this->error = $this->operatorMessage((string) $res->error);
+
+                return;
+            }
+            $this->flash = "Updated {$domain}.";
+            $this->cancelEdit();
             $this->reload($broker);
         } catch (\Throwable $e) {
             $this->error = $this->operatorMessage($e->getMessage());
@@ -109,7 +170,7 @@ class VhostsPage extends Component
     {
         return view('livewire.vhosts')->layoutData([
             'heading' => 'Virtual hosts',
-            'sub' => 'Reverse-proxy and protected vhosts are read-only',
+            'sub' => 'Reverse-proxy and protected vhosts are read-only. Type and domain cannot be changed — delete and recreate instead.',
         ]);
     }
 }
