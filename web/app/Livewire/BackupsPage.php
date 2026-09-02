@@ -11,7 +11,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Backups · LACMP Panel')]
+#[Title('Backups · Stack Manager')]
 class BackupsPage extends Component
 {
     public string $endpoint = '';

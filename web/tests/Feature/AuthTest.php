@@ -144,6 +144,77 @@ class AuthTest extends TestCase
             ->assertRedirect(route('two-factor.setup'));
     }
 
+    public function test_cli_created_admin_has_no_totp_and_enrolls_on_first_login(): void
+    {
+        config(['azerioid.require_totp' => true]);
+        putenv('PANEL_INSTALL_ADMIN_PASSWORD=CliAdminPass1!');
+
+        $this->artisan('panel:create-admin', [
+            '--email' => 'cli-admin@example.com',
+            '--name' => 'CLI Admin',
+        ])->assertSuccessful();
+
+        $user = User::query()->where('email', 'cli-admin@example.com')->first();
+        $this->assertNotNull($user);
+        $this->assertNull($user->two_factor_secret);
+        $this->assertNull($user->two_factor_confirmed_at);
+        $this->assertFalse($user->hasTwoFactorEnabled());
+
+        Livewire::test(\App\Livewire\Auth\Login::class)
+            ->set('email', 'cli-admin@example.com')
+            ->set('password', 'CliAdminPass1!')
+            ->call('authenticate')
+            ->assertRedirect(route('two-factor.setup'));
+
+        Livewire::test(\App\Livewire\Auth\TwoFactorSetup::class)
+            ->assertSee('Two-factor is required', false)
+            ->assertDontSee('Authenticator code', false);
+    }
+
+    public function test_challenge_recover_unenrolled_pending_login_to_setup(): void
+    {
+        config(['azerioid.require_totp' => true]);
+        $user = User::factory()->create([
+            'email' => 'pending@example.com',
+            'password' => 'password',
+        ]);
+
+        $this->withSession(['login.id' => $user->id])
+            ->get('/two-factor/challenge')
+            ->assertRedirect(route('two-factor.setup'));
+
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_enrolled_user_login_goes_to_verify_then_dashboard(): void
+    {
+        config(['azerioid.require_totp' => true]);
+        $totp = new TotpService();
+        $secret = $totp->generateSecret();
+        $user = User::factory()->create([
+            'email' => 'enrolled@example.com',
+            'password' => 'password',
+            'two_factor_secret' => Crypt::encryptString($secret),
+            'two_factor_confirmed_at' => now(),
+        ]);
+
+        Livewire::test(\App\Livewire\Auth\Login::class)
+            ->set('email', $user->email)
+            ->set('password', 'password')
+            ->call('authenticate')
+            ->assertRedirect(route('two-factor.challenge'));
+
+        Livewire::test(\App\Livewire\Auth\TwoFactorChallenge::class)
+            ->set('code', $this->totpCode($secret))
+            ->call('verify')
+            ->assertRedirect(route('dashboard'));
+    }
+
+    private function totpCode(string $secret): string
+    {
+        return (new \PragmaRX\Google2FA\Google2FA())->getCurrentOtp($secret);
+    }
+
     public function test_optional_totp_setup_can_be_skipped(): void
     {
         config(['azerioid.require_totp' => false]);

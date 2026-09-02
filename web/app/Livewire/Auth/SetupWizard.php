@@ -12,7 +12,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.guest')]
-#[Title('Initial setup · LACMP Panel')]
+#[Title('Initial setup · Stack Manager')]
 class SetupWizard extends Component
 {
     public string $name = 'Admin';

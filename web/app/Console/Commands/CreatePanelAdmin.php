@@ -48,6 +48,9 @@ class CreatePanelAdmin extends Command
             'name' => $name !== '' ? $name : 'Admin',
             'email' => $email,
             'password' => Hash::make($password),
+            'two_factor_secret' => null,
+            'two_factor_confirmed_at' => null,
+            'two_factor_recovery_codes' => null,
         ]);
 
         $allowlist = trim((string) ($this->option('allowlist') ?: ''));

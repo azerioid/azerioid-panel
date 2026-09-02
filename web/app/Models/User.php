@@ -48,6 +48,12 @@ class User extends Authenticatable
         return $this->two_factor_confirmed_at !== null && filled($this->two_factor_secret);
     }
 
+    /** True when TOTP is required but this account has not completed enrollment yet. */
+    public function mustEnrollTwoFactor(): bool
+    {
+        return config('azerioid.require_totp') && ! $this->hasTwoFactorEnabled();
+    }
+
     public function isLocked(): bool
     {
         return $this->locked_until !== null && $this->locked_until->isFuture();

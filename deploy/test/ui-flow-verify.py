@@ -144,6 +144,11 @@ def main() -> int:
         action="store_true",
         help="With --require-totp-setup, complete 2FA enrollment and verify dashboard login",
     )
+    parser.add_argument(
+        "--verify-second-login",
+        action="store_true",
+        help="With --complete-totp, log out and confirm second login uses TOTP verify (not setup)",
+    )
     args = parser.parse_args()
 
     client = PanelClient(args.base)
@@ -200,6 +205,9 @@ def main() -> int:
     if status != 200:
         print(f"FAIL login page HTTP {status}", file=sys.stderr)
         return 1
+    if "LACMP Panel" in page:
+        print("FAIL login page still shows legacy LACMP Panel branding", file=sys.stderr)
+        return 1
     snapshot, csrf = extract_snapshot(page)
 
     if args.typo_test:
@@ -243,6 +251,12 @@ def main() -> int:
             if status != 200:
                 print(f"FAIL TOTP setup page HTTP {status}", file=sys.stderr)
                 return 1
+            if "LACMP Panel" in setup_page:
+                print("FAIL TOTP setup page still shows legacy LACMP Panel branding", file=sys.stderr)
+                return 1
+            if "Authenticator code" in setup_page and "Enable 2FA" not in setup_page:
+                print("FAIL landed on verify screen instead of enroll/setup", file=sys.stderr)
+                return 1
             setup_snapshot, setup_csrf = extract_snapshot(setup_page)
             secret = str(snapshot_data(setup_snapshot).get("secret") or "")
             if len(secret) < 8:
@@ -267,6 +281,67 @@ def main() -> int:
                 print("FAIL dashboard not authenticated after TOTP enrollment", file=sys.stderr)
                 return 1
             evidence.append("dashboard authenticated after totp enrollment")
+
+            if args.verify_second_login:
+                status, settings_page, _ = login_client.get("/settings")
+                _, logout_csrf = extract_snapshot(settings_page) if "wire:snapshot" in settings_page else ("", "")
+                if not logout_csrf:
+                    m = re.search(r'<meta name="csrf-token" content="([^"]+)"', settings_page)
+                    logout_csrf = m.group(1) if m else csrf
+                try:
+                    login_client.post("/logout", logout_csrf)
+                    evidence.append("logout after enrollment ok")
+                except urllib.error.HTTPError as e:
+                    if e.code not in (302, 303):
+                        print(f"FAIL logout HTTP {e.code}", file=sys.stderr)
+                        return 1
+                    evidence.append("logout after enrollment redirected")
+
+                verify_client = PanelClient(args.base)
+                status, login_page, _ = verify_client.get("/login")
+                snap2, csrf2 = extract_snapshot(login_page)
+                relogin = verify_client.livewire_call(
+                    "/login",
+                    snap2,
+                    csrf2,
+                    {"email": args.email, "password": args.password},
+                    "authenticate",
+                )
+                relogin_redirect = _component_redirect(relogin)
+                if "two-factor/challenge" not in relogin_redirect:
+                    print(
+                        f"FAIL second login expected /two-factor/challenge, got {relogin_redirect}",
+                        file=sys.stderr,
+                    )
+                    return 1
+                evidence.append(f"second login redirect={relogin_redirect}")
+
+                status, challenge_page, _ = verify_client.get("/two-factor/challenge")
+                if "Authenticator code" not in challenge_page:
+                    print("FAIL second login did not show verify/challenge screen", file=sys.stderr)
+                    return 1
+                if "Enable 2FA" in challenge_page:
+                    print("FAIL second login incorrectly showed enroll screen", file=sys.stderr)
+                    return 1
+                ch_snap, ch_csrf = extract_snapshot(challenge_page)
+                verify = verify_client.livewire_call(
+                    "/two-factor/challenge",
+                    ch_snap,
+                    ch_csrf,
+                    {"code": totp_code(secret)},
+                    "verify",
+                )
+                verify_redirect = _component_redirect(verify)
+                if not verify_redirect or "login" in verify_redirect:
+                    print(f"FAIL TOTP verify on second login: {json.dumps(verify)[:500]}", file=sys.stderr)
+                    return 1
+                evidence.append(f"second login totp verify redirect={verify_redirect}")
+
+                status, dash2, _ = verify_client.get("/")
+                if status != 200 or "Sign in" in dash2:
+                    print("FAIL dashboard not authenticated after second-login TOTP verify", file=sys.stderr)
+                    return 1
+                evidence.append("dashboard authenticated after second-login verify")
         else:
             status, setup_page, _ = login_client.get("/two-factor/setup")
             if status != 200 or "wire:snapshot" not in setup_page:

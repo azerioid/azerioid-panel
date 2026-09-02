@@ -10,7 +10,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Services · LACMP Panel')]
+#[Title('Services · Stack Manager')]
 class ServicesPage extends Component
 {
     public array $controlled = [];
@@ -85,7 +85,7 @@ class ServicesPage extends Component
     {
         return view('livewire.services')->layoutData([
             'heading' => 'Services',
-            'sub' => 'Only LACMP units can be started or stopped',
+            'sub' => 'Only panel-managed units can be started or stopped',
         ]);
     }
 }

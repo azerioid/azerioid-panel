@@ -21,15 +21,21 @@ path, key, value = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3]
 text = path.read_text() if path.exists() else ""
 lines, found = [], False
 prefix = key + "="
+
+def fmt_value(v: str) -> str:
+    if any(c in v for c in ' \t#"\\'):
+        return '"' + v.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    return v
+
 for line in text.splitlines():
     if line.startswith(prefix) or line.startswith("#" + prefix):
         if not found:
-            lines.append(prefix + value)
+            lines.append(prefix + fmt_value(value))
             found = True
     else:
         lines.append(line)
 if not found:
-    lines.append(prefix + value)
+    lines.append(prefix + fmt_value(value))
 path.write_text("\n".join(lines) + "\n")
 PY
 }

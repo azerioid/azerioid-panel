@@ -10,7 +10,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.guest')]
-#[Title('Enable 2FA · LACMP Panel')]
+#[Title('Enable 2FA · Stack Manager')]
 class TwoFactorSetup extends Component
 {
     public string $code = '';

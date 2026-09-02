@@ -12,7 +12,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.guest')]
-#[Title('Sign in · LACMP Panel')]
+#[Title('Sign in · Stack Manager')]
 class Login extends Component
 {
     public string $email = '';
@@ -69,10 +69,12 @@ class Login extends Component
         if ($user->hasTwoFactorEnabled()) {
             session(['login.id' => $user->id]);
             $this->redirectRoute('two-factor.challenge', navigate: true);
+
             return;
         }
 
         Auth::login($user);
+        session()->forget('login.id');
         session()->regenerate();
         session()->put('last_activity_at', time());
         $user->forceFill([
@@ -80,7 +82,7 @@ class Login extends Component
             'last_login_ip' => request()->ip(),
         ])->save();
 
-        if (config('azerioid.require_totp')) {
+        if ($user->mustEnrollTwoFactor()) {
             $this->redirectRoute('two-factor.setup', navigate: true);
 
             return;

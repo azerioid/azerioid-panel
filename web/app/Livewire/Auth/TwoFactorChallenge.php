@@ -10,7 +10,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.guest')]
-#[Title('Two-factor · LACMP Panel')]
+#[Title('Two-factor · Stack Manager')]
 class TwoFactorChallenge extends Component
 {
     public string $code = '';
@@ -19,9 +19,22 @@ class TwoFactorChallenge extends Component
     {
         if (Auth::check()) {
             $this->redirectRoute('dashboard', navigate: true);
+
+            return;
         }
         if (! session()->has('login.id')) {
             $this->redirectRoute('login', navigate: true);
+
+            return;
+        }
+
+        $pending = User::query()->find(session('login.id'));
+        if ($pending instanceof User && ! $pending->hasTwoFactorEnabled()) {
+            session()->forget('login.id');
+            Auth::login($pending);
+            session()->regenerate();
+            session()->put('last_activity_at', time());
+            $this->redirectRoute('two-factor.setup', navigate: true);
         }
     }
 

@@ -8,7 +8,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Logs · LACMP Panel')]
+#[Title('Logs · Stack Manager')]
 class LogsPage extends Component
 {
     public string $key = 'caddy';
