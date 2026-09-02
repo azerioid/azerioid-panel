@@ -112,22 +112,18 @@ final class MongoProvisioner
                     null,
                     30
                 );
+                if ($this->mongoshOk($result)) {
+                    return true;
+                }
             } else {
                 $result = $this->runtime->exec(
                     ['/usr/bin/mongosh', '--quiet', '--eval', 'db.adminCommand({ping:1})'],
                     null,
                     30
                 );
-                if (!$result->ok()) {
-                    $result = $this->runtime->exec(
-                        ['/usr/bin/mongo', '--quiet', '--eval', 'db.adminCommand({ping:1})'],
-                        null,
-                        30
-                    );
+                if ($this->mongoshOk($result)) {
+                    return true;
                 }
-            }
-            if ($result->ok() && str_contains($result->stdout, 'ok')) {
-                return true;
             }
             usleep(500_000);
         }
@@ -141,7 +137,7 @@ final class MongoProvisioner
         $create = "db.getSiblingDB('admin').createUser({user: '" . self::ADMIN_USER
             . "', pwd: '{$escaped}', roles: [{role: 'root', db: 'admin'}]});";
         $result = $this->mongoshEval($create, 120);
-        if ($result->ok()) {
+        if ($this->mongoshOk($result)) {
             return true;
         }
 
@@ -151,7 +147,7 @@ final class MongoProvisioner
             $update = "db.getSiblingDB('admin').updateUser('" . self::ADMIN_USER
                 . "', {pwd: '{$escaped}'});";
 
-            return $this->mongoshEval($update, 120)->ok();
+            return $this->mongoshOk($this->mongoshEval($update, 120));
         }
 
         $log->warn(trim($result->stderr . ' ' . $result->stdout));
@@ -161,20 +157,24 @@ final class MongoProvisioner
 
     private function mongoshEval(string $script, int $timeoutSeconds): ExecResult
     {
-        $result = $this->runtime->exec(
+        return $this->runtime->exec(
             ['/usr/bin/mongosh', '--quiet', '--eval', $script],
             null,
             $timeoutSeconds
         );
-        if ($result->ok()) {
-            return $result;
+    }
+
+    private function mongoshOk(ExecResult $result): bool
+    {
+        if (!$result->ok()) {
+            return false;
         }
 
-        return $this->runtime->exec(
-            ['/usr/bin/mongosh', '--quiet'],
-            $script . "\n",
-            $timeoutSeconds
-        );
+        $combined = strtolower($result->stderr . "\n" . $result->stdout);
+
+        return str_contains($combined, 'ok')
+            && !str_contains($combined, 'error')
+            && !str_contains($combined, 'unauthorized');
     }
 
     private function anonymousPingOk(): bool
