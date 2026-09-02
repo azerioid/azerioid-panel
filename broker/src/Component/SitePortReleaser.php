@@ -39,11 +39,14 @@ final class SitePortReleaser
         $original = $this->runtime->readFile($caddyfile);
         $this->runtime->writeFile($backup, $original, 0640);
 
+        $parked = $this->parkSiteVhosts();
+
         $released = $this->renderPanelOnlyCaddyfile($this->config->caddyConfD);
         $this->runtime->writeFile($caddyfile, $released, 0644);
 
         $validate = CaddyCli::validate($this->runtime, $this->config, $caddyfile);
         if (!$validate->ok()) {
+            $this->restoreParkedVhosts($parked);
             $this->runtime->writeFile($caddyfile, $original, 0644);
             $detail = trim($validate->stderr . "\n" . $validate->stdout);
             throw new BrokerException(
@@ -61,6 +64,7 @@ final class SitePortReleaser
         try {
             CaddyApply::run($this->runtime, $this->config, 'auto');
         } catch (BrokerException $e) {
+            $this->restoreParkedVhosts($parked);
             $this->runtime->writeFile($caddyfile, $original, 0644);
             BrokerConfigWriter::merge($this->runtime, $configPath, [
                 'site_web_server' => $this->config->siteWebServer,
@@ -72,6 +76,7 @@ final class SitePortReleaser
         }
 
         if (!$this->panelReachable($panelPort)) {
+            $this->restoreParkedVhosts($parked);
             $this->runtime->writeFile($caddyfile, $original, 0644);
             BrokerConfigWriter::merge($this->runtime, $configPath, [
                 'site_web_server' => $this->config->siteWebServer,
@@ -92,13 +97,46 @@ final class SitePortReleaser
             'caddy_listens_on_80_after' => $this->caddyListensOn(80),
             'caddy_listens_on_443_after' => $this->caddyListensOn(443),
             'site_web_server' => 'panel-only',
-            'note' => 'Panel Caddy serves only conf.d snippets (panel port). Re-install Caddy for sites from Components to reclaim :80/:443.',
+            'parked_site_vhosts' => $parked,
+            'note' => 'Panel Caddy serves only azerioid-panel.conf (panel port). Site snippets were parked under staging. Re-install Caddy for sites from Components to reclaim :80/:443.',
         ];
+    }
+
+    /** @return list<string> */
+    private function parkSiteVhosts(): array
+    {
+        $confD = rtrim($this->config->caddyConfD, '/');
+        $parkDir = rtrim($this->config->stagingDir, '/')
+            . '/released-caddy-vhosts-' . gmdate('Ymd\THis\Z');
+        $this->runtime->mkdir($parkDir, 0750);
+        $parked = [];
+        foreach ($this->runtime->glob($confD . '/*.conf') as $path) {
+            if (str_ends_with($path, '/azerioid-panel.conf')) {
+                continue;
+            }
+            $dest = $parkDir . '/' . basename($path);
+            $this->runtime->rename($path, $dest);
+            $parked[] = $dest;
+        }
+
+        return $parked;
+    }
+
+    /** @param list<string> $parked */
+    private function restoreParkedVhosts(array $parked): void
+    {
+        $confD = rtrim($this->config->caddyConfD, '/');
+        foreach ($parked as $path) {
+            if (!$this->runtime->fileExists($path)) {
+                continue;
+            }
+            $this->runtime->rename($path, $confD . '/' . basename($path));
+        }
     }
 
     private function renderPanelOnlyCaddyfile(string $confD): string
     {
-        $import = rtrim($confD, '/') . '/*.conf';
+        $import = rtrim($confD, '/') . '/azerioid-panel.conf';
 
         return <<<EOF
 # Stack Manager — panel Caddy only (site ports released for Nginx/Apache)
