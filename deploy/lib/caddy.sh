@@ -61,16 +61,24 @@ configure_panel_caddy() {
 
     install -d -m 0755 "${CADDY_CONFD}"
     local snippet="${CADDY_CONFD}/azerioid-panel.conf"
-    local public_ip=""
+    local public_ip="${PANEL_PUBLIC_IP:-}"
+    local public_domain="${PANEL_PUBLIC_DOMAIN:-}"
     if [[ "${ACCESS:-tunnel}" == "public" ]]; then
-        public_ip="$(detect_public_ip || true)"
-        [[ -n "${public_ip}" ]] || die "Could not detect public IP for --access=public"
-        echo "==> Public panel HTTPS on ${public_ip}:${PANEL_PORT}"
+        if [[ -z "${public_domain}" && -z "${public_ip}" ]]; then
+            public_ip="$(detect_public_ip || true)"
+        fi
+        [[ -n "${public_domain}" || -n "${public_ip}" ]] \
+            || die "Could not detect public IP for --access=public (set --domain= or confirm IP in interactive setup)"
+        if [[ -n "${public_domain}" ]]; then
+            echo "==> Public panel HTTPS on ${public_domain}:${PANEL_PORT}"
+        else
+            echo "==> Public panel HTTPS on ${public_ip}:${PANEL_PORT}"
+        fi
     fi
 
-    python3 - "${snippet}" "${PREFIX}" "${PANEL_PORT}" "${ACCESS:-tunnel}" "${public_ip}" <<'PY'
+    python3 - "${snippet}" "${PREFIX}" "${PANEL_PORT}" "${ACCESS:-tunnel}" "${public_ip}" "${public_domain}" <<'PY'
 import pathlib, sys
-snippet, prefix, port, access, public_ip = sys.argv[1:6]
+snippet, prefix, port, access, public_ip, public_domain = sys.argv[1:7]
 web = prefix + "/web/public"
 sock = "unix//run/php/azerioid-panel.sock"
 common = f"""    encode gzip zstd
@@ -96,8 +104,10 @@ http://127.0.0.1:{port} {{
 {common}
 }}
 """]
-if access == "public" and public_ip:
-    blocks.append(f"""https://{public_ip}:{port} {{
+if access == "public":
+    host = public_domain.strip() if public_domain.strip() else public_ip.strip()
+    if host:
+        blocks.append(f"""https://{host}:{port} {{
     tls internal
 {common}
 }}

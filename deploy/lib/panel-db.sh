@@ -25,7 +25,15 @@ configure_panel_db() {
     env_set "${PREFIX}/web/.env" BROKER_PATH "${PREFIX}/broker"
     env_set "${PREFIX}/web/.env" APP_ENV production
     env_set "${PREFIX}/web/.env" APP_DEBUG false
-    env_set "${PREFIX}/web/.env" APP_URL "http://127.0.0.1:${PANEL_PORT:-3169}"
+    local app_url="http://127.0.0.1:${PANEL_PORT:-3169}"
+    if [[ "${ACCESS:-tunnel}" == "public" ]]; then
+        if [[ -n "${PANEL_PUBLIC_DOMAIN:-}" ]]; then
+            app_url="https://${PANEL_PUBLIC_DOMAIN}:${PANEL_PORT}"
+        elif [[ -n "${PANEL_PUBLIC_IP:-}" ]]; then
+            app_url="https://${PANEL_PUBLIC_IP}:${PANEL_PORT}"
+        fi
+    fi
+    env_set "${PREFIX}/web/.env" APP_URL "${app_url}"
     env_set "${PREFIX}/web/.env" AZERIOID_WWW_ROOT "${WWW_ROOT:-/data/www}"
     env_set "${PREFIX}/web/.env" SESSION_SECURE_COOKIE "$([[ "${ACCESS:-tunnel}" == public ]] && echo true || echo false)"
     env_set "${PREFIX}/web/.env" PANEL_REQUIRE_TOTP "${REQUIRE_TOTP:-false}"

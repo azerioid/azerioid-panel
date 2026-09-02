@@ -21,40 +21,73 @@ wait_for_panel_ready() {
     die "Panel is not reachable on 127.0.0.1:${port} (FPM socket, queue worker, or HTTP check failed)."
 }
 
+panel_public_url() {
+    if [[ "${ACCESS:-tunnel}" != "public" ]]; then
+        return 1
+    fi
+    if [[ -n "${PANEL_PUBLIC_DOMAIN:-}" ]]; then
+        echo "https://${PANEL_PUBLIC_DOMAIN}:${PANEL_PORT}"
+        return 0
+    fi
+    local ip="${PANEL_PUBLIC_IP:-}"
+    [[ -z "${ip}" ]] && ip="$(detect_public_ip 2>/dev/null || true)"
+    [[ -n "${ip}" ]] || return 1
+    echo "https://${ip}:${PANEL_PORT}"
+}
+
 print_install_success() {
     local panel_url="http://127.0.0.1:${PANEL_PORT}"
     local setup_url="${panel_url}/setup"
     local login_url="${panel_url}/login"
     local totp_note="disabled (password-only login)"
     if [[ "${REQUIRE_TOTP:-false}" == "true" ]]; then
-        totp_note="required (enroll authenticator during setup)"
+        totp_note="required (enroll on first login if not done during setup)"
+    fi
+    local admin_created=0
+    if command -v sqlite3 >/dev/null 2>&1 \
+        && [[ -f /var/lib/azerioid-panel/panel.sqlite ]] \
+        && sqlite3 /var/lib/azerioid-panel/panel.sqlite "SELECT COUNT(*) FROM users;" 2>/dev/null | grep -q '^[1-9]'; then
+        admin_created=1
     fi
 
     echo
     echo "Stack Manager installed."
     echo "  Panel:     ${panel_url}"
-    echo "  Setup:     ${setup_url}  (create the admin account — required on first visit)"
-    echo "  Sign in:   ${login_url}  (after setup completes)"
+    if [[ "${admin_created}" -eq 0 ]]; then
+        echo "  Setup:     ${setup_url}  (create the admin account — required on first visit)"
+    fi
+    echo "  Sign in:   ${login_url}"
     echo "  TOTP:      ${totp_note}"
+    echo "  Access:    ${ACCESS:-tunnel}"
+    echo "  Firewall:  ${DO_FIREWALL:-false}  fail2ban: ${DO_FAIL2BAN:-false}"
     echo "  Broker:    ${PREFIX}/broker"
     echo "  Database:  /var/lib/azerioid-panel/panel.sqlite"
     echo "  Queue:     systemctl status azerioid-panel-queue"
     echo
     echo "  SSH tunnel: ssh -L ${PANEL_PORT}:127.0.0.1:${PANEL_PORT} user@host"
-    echo "              Then open ${setup_url} in your browser."
-    if [[ "${ACCESS:-tunnel}" == "public" ]]; then
-        local public_ip=""
-        public_ip="$(detect_public_ip 2>/dev/null || true)"
-        if [[ -n "${public_ip}" ]]; then
-            echo "  Public:    https://${public_ip}:${PANEL_PORT}/setup  (self-signed TLS; accept the certificate warning)"
+    if [[ "${admin_created}" -eq 0 ]]; then
+        echo "              Then open ${setup_url} in your browser."
+    else
+        echo "              Then open ${login_url} in your browser."
+    fi
+    local public_url=""
+    public_url="$(panel_public_url 2>/dev/null || true)"
+    if [[ -n "${public_url}" ]]; then
+        if [[ -n "${PANEL_PUBLIC_DOMAIN:-}" ]]; then
+            echo "  Public:    ${public_url}/login  (TLS on ${PANEL_PUBLIC_DOMAIN}; accept cert warning if self-signed)"
+        else
+            echo "  Public:    ${public_url}/login  (self-signed TLS; accept the certificate warning)"
         fi
     fi
     echo
-    if command -v sqlite3 >/dev/null 2>&1 \
-        && [[ -f /var/lib/azerioid-panel/panel.sqlite ]] \
-        && sqlite3 /var/lib/azerioid-panel/panel.sqlite "SELECT COUNT(*) FROM users;" 2>/dev/null | grep -q '^[1-9]'; then
-        echo "  Admin account already exists — open ${login_url} to sign in."
+    if [[ "${admin_created}" -eq 1 ]]; then
+        local admin_email=""
+        admin_email="$(sqlite3 /var/lib/azerioid-panel/panel.sqlite "SELECT email FROM users ORDER BY id LIMIT 1;" 2>/dev/null || true)"
+        echo "  Admin:     ${admin_email:-unknown} (sign in at ${login_url})"
+        if [[ "${REQUIRE_TOTP:-false}" == "true" ]]; then
+            echo "             Complete 2FA enrollment on first login."
+        fi
     else
-        echo "  No admin account exists yet. Complete /setup before signing in."
+        echo "  No admin account yet — complete /setup or reinstall interactively and choose admin creation."
     fi
 }
