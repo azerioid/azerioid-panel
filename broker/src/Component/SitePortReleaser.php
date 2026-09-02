@@ -142,6 +142,7 @@ final class SitePortReleaser
 # Stack Manager — panel Caddy only (site ports released for Nginx/Apache)
 {
     admin off
+    auto_https disable_redirects
 }
 import {$import}
 
