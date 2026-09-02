@@ -108,12 +108,46 @@ purge_released_caddy_state() {
     rm -f /var/lib/azerioid-panel/staging/caddyfile.pre-release-*.bak 2>/dev/null || true
 }
 
+remove_bootstrap_packages() {
+    local bootstrap="/etc/azerioid-panel/bootstrap.json"
+    [[ -f "${bootstrap}" ]] || return 0
+    if ! python3 - "${bootstrap}" <<'PY'
+import json, pathlib, sys
+data = json.loads(pathlib.Path(sys.argv[1]).read_text())
+sys.exit(0 if data.get("caddy") or data.get("php") else 1)
+PY
+    then
+        return 0
+    fi
+    echo "==> Removing bootstrap-installed Caddy/PHP (per bootstrap.json)"
+    if command -v apt-get >/dev/null 2>&1; then
+        apt-get -y remove --purge caddy "php${PANEL_PHP_VERSION}-fpm" "php${PANEL_PHP_VERSION}-cli" 2>/dev/null || true
+        apt-get -y autoremove --purge 2>/dev/null || true
+    elif command -v dnf >/dev/null 2>&1; then
+        dnf -y remove caddy php-fpm php-cli 2>/dev/null || true
+    fi
+    rm -f "${bootstrap}"
+    rm -f /etc/caddy/conf.d/*.conf 2>/dev/null || true
+    if [[ -f /etc/caddy/Caddyfile ]] && command -v caddy >/dev/null 2>&1; then
+        cat > /etc/caddy/Caddyfile <<'EOF'
+:80 {
+    root * /usr/share/caddy
+    file_server
+}
+EOF
+        systemctl restart caddy 2>/dev/null || true
+    fi
+}
+
 WEB_USER=caddy
 id -u caddy >/dev/null 2>&1 || WEB_USER=www-data
 id -u "${WEB_USER}" >/dev/null 2>&1 || WEB_USER=apache
 
 if [[ "${PURGE_MANAGED}" -eq 1 ]]; then
     purge_managed_components
+    if command -v apt-get >/dev/null 2>&1; then
+        apt-get -y autoremove --purge 2>/dev/null || true
+    fi
 fi
 
 systemctl stop azerioid-panel-queue.service 2>/dev/null || true
@@ -157,40 +191,16 @@ fi
 
 rm -rf "${PREFIX}"
 
+if [[ "${REMOVE_BOOTSTRAP}" -eq 1 ]]; then
+    remove_bootstrap_packages
+fi
+
 if [[ "${DROP_DB}" -eq 1 ]]; then
     rm -f /var/lib/azerioid-panel/panel.sqlite /var/lib/azerioid-panel/panel.sqlite-wal /var/lib/azerioid-panel/panel.sqlite-shm
     rm -rf /var/lib/azerioid-panel/staging
     rm -f /etc/azerioid-panel/broker.json /etc/azerioid-panel/web.env /etc/azerioid-panel/bootstrap.json
     rmdir /etc/azerioid-panel 2>/dev/null || true
     rmdir /var/lib/azerioid-panel 2>/dev/null || true
-fi
-
-BOOTSTRAP=/etc/azerioid-panel/bootstrap.json
-if [[ "${REMOVE_BOOTSTRAP}" -eq 1 && -f "${BOOTSTRAP}" ]]; then
-  if python3 - "${BOOTSTRAP}" <<'PY'
-import json, pathlib, sys
-data = json.loads(pathlib.Path(sys.argv[1]).read_text())
-sys.exit(0 if data.get("caddy") or data.get("php") else 1)
-PY
-  then
-    echo "==> Removing bootstrap-installed Caddy/PHP (per bootstrap.json)"
-    if command -v apt-get >/dev/null 2>&1; then
-      apt-get -y remove --purge caddy "php${PANEL_PHP_VERSION}-fpm" "php${PANEL_PHP_VERSION}-cli" 2>/dev/null || true
-    elif command -v dnf >/dev/null 2>&1; then
-      dnf -y remove caddy php-fpm php-cli 2>/dev/null || true
-    fi
-    rm -f "${BOOTSTRAP}"
-    rm -f /etc/caddy/conf.d/*.conf 2>/dev/null || true
-    if [[ -f /etc/caddy/Caddyfile ]] && command -v caddy >/dev/null 2>&1; then
-      cat > /etc/caddy/Caddyfile <<'EOF'
-:80 {
-    root * /usr/share/caddy
-    file_server
-}
-EOF
-      systemctl restart caddy 2>/dev/null || true
-    fi
-  fi
 fi
 
 if [[ "${PURGE_REPOS}" -eq 1 ]]; then
