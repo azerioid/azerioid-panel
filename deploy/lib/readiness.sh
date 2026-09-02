@@ -88,6 +88,12 @@ print_install_success() {
             echo "             Complete 2FA enrollment on first login."
         fi
     else
-        echo "  No admin account yet — complete /setup or reinstall interactively and choose admin creation."
+        if [[ "${ADMIN_CREATE_FAILED:-0}" -eq 1 ]]; then
+            echo "  ⚠ Admin account was NOT created during install."
+            echo "    Complete ${setup_url} in your browser, or run panel:create-admin manually"
+            echo "    (see installer output above for the exact env-var command)."
+        else
+            echo "  No admin account yet — complete /setup or reinstall interactively and choose admin creation."
+        fi
     fi
 }
