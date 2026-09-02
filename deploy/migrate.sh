@@ -134,6 +134,12 @@ fi
 info "Stopping queue worker"
 systemctl stop azerioid-panel-queue.service 2>/dev/null || true
 
+if [[ -f /etc/azerioid-panel/access.env ]]; then
+    # shellcheck disable=SC1091
+    source /etc/azerioid-panel/access.env
+    export ACCESS PANEL_PORT
+fi
+
 info "Preparing SQLite panel database"
 configure_panel_db
 run_as_web "${PHP_BIN} artisan migrate --force --no-interaction"

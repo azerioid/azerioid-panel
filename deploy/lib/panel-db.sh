@@ -25,7 +25,7 @@ configure_panel_db() {
     env_set "${PREFIX}/web/.env" BROKER_PATH "${PREFIX}/broker"
     env_set "${PREFIX}/web/.env" APP_ENV production
     env_set "${PREFIX}/web/.env" APP_DEBUG false
-    env_set "${PREFIX}/web/.env" APP_URL "http://127.0.0.1:${PANEL_PORT}"
+    env_set "${PREFIX}/web/.env" APP_URL "http://127.0.0.1:${PANEL_PORT:-3169}"
     env_set "${PREFIX}/web/.env" AZERIOID_WWW_ROOT "${WWW_ROOT:-/data/www}"
     env_set "${PREFIX}/web/.env" SESSION_SECURE_COOKIE "$([[ "${ACCESS:-tunnel}" == public ]] && echo true || echo false)"
     env_set "${PREFIX}/web/.env" PANEL_REQUIRE_TOTP "${REQUIRE_TOTP:-false}"
