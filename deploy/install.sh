@@ -93,6 +93,8 @@ source "${LIB}/queue-worker.sh"
 source "${LIB}/broker-setup.sh"
 # shellcheck source=lib/security.sh
 source "${LIB}/security.sh"
+# shellcheck source=lib/readiness.sh
+source "${LIB}/readiness.sh"
 
 detect_os
 WEB_USER="$(detect_web_user)"
@@ -128,13 +130,8 @@ dispatch_ping_job
 install_security
 write_bootstrap_json
 
+wait_for_panel_ready
+print_install_success
+
 chmod 0751 "${PREFIX}"
 chown root:root "${PREFIX}"
-
-echo
-echo "Stack Manager installed."
-echo "  Panel:     http://127.0.0.1:${PANEL_PORT}"
-echo "  Broker:    ${PREFIX}/broker"
-echo "  Database:  /var/lib/azerioid-panel/panel.sqlite"
-echo "  Queue:     systemctl status azerioid-panel-queue"
-echo "  SSH tunnel: ssh -L ${PANEL_PORT}:127.0.0.1:${PANEL_PORT} user@host"
