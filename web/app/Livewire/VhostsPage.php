@@ -23,6 +23,8 @@ class VhostsPage extends Component
     public ?string $error = null;
     public ?string $flash = null;
     public ?string $confirmDelete = null;
+    public bool $removeSupervisorOnDelete = false;
+    public array $supervisorByVhost = [];
     public bool $showForm = false;
 
     public ?string $editingDomain = null;
@@ -128,15 +130,27 @@ class VhostsPage extends Component
         }
     }
 
-    public function delete(BrokerClient $broker, string $domain): void
+    public function askDelete(string $domain): void
     {
-        $res = $broker->call('vhost.del', [Validator::domain($domain)]);
+        $this->confirmDelete = $domain;
+        $this->removeSupervisorOnDelete = false;
+    }
+
+    public function delete(BrokerClient $broker, ?string $domain = null): void
+    {
+        $domain = Validator::domain($domain ?? $this->confirmDelete ?? '');
+        $stdin = [];
+        if ($this->removeSupervisorOnDelete) {
+            $stdin['remove_supervisor_programs'] = true;
+        }
+        $res = $broker->call('vhost.del', [Validator::domain($domain)], $stdin);
         if (! $res->ok) {
             $this->error = $this->operatorMessage((string) $res->error);
         } else {
             $this->flash = "Deleted {$domain}. Website files were left in place.";
         }
         $this->confirmDelete = null;
+        $this->removeSupervisorOnDelete = false;
         $this->reload($broker);
     }
 
@@ -160,6 +174,17 @@ class VhostsPage extends Component
             $this->phpVersions = array_column($php, 'version');
             if ($this->php_version === '' && $this->phpVersions !== []) {
                 $this->php_version = $this->phpVersions[array_key_last($this->phpVersions)];
+            }
+            $this->supervisorByVhost = [];
+            try {
+                $programs = $broker->call('supervisor.program.list')->dataOrFail()['programs'] ?? [];
+                foreach ($programs as $program) {
+                    $vd = $program['vhost_domain'] ?? null;
+                    if ($vd) {
+                        $this->supervisorByVhost[$vd][] = $program['name'];
+                    }
+                }
+            } catch (BrokerCallException) {
             }
         } catch (BrokerCallException $e) {
             $this->error = $e->getMessage();

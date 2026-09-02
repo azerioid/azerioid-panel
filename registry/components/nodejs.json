@@ -2,7 +2,7 @@
   "id": "nodejs",
   "display_name": "Node.js",
   "category": "runtime",
-  "description": "Node.js runtime (install only — no process manager in v1)",
+  "description": "Node.js runtime for application servers and build tooling",
   "managed": true,
   "system": false,
   "installable": true,

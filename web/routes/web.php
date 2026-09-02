@@ -11,6 +11,7 @@ use App\Livewire\ComponentsPage;
 use App\Livewire\Dashboard;
 use App\Livewire\DatabasesPage;
 use App\Livewire\LogsPage;
+use App\Livewire\ProcessesPage;
 use App\Livewire\SecurityPage;
 use App\Livewire\ServicesPage;
 use App\Livewire\SettingsPage;
@@ -42,6 +43,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::get('/databases', DatabasesPage::class)->name('databases');
     Route::get('/backups', BackupsPage::class)->name('backups');
     Route::get('/services', ServicesPage::class)->name('services');
+    Route::get('/processes', ProcessesPage::class)->name('processes');
     Route::get('/logs', LogsPage::class)->name('logs');
     Route::get('/security', SecurityPage::class)->name('security');
     Route::get('/components', ComponentsPage::class)->name('components');

@@ -27,7 +27,13 @@ final class FakeBroker
     public bool $php82Failed = true;
 
     /** @var array<string, true> */
+    public array $fakeInstalledComponents = [];
+
+    /** @var array<string, true> */
     public array $fakeObservedComponents = [];
+
+    /** @var array<string, array<string, mixed>> keyed by program name */
+    public array $supervisorPrograms = [];
 
     public function __construct()
     {
@@ -41,6 +47,7 @@ final class FakeBroker
         $this->php82Failed = true;
         $this->fakeInstalledComponents = [];
         $this->fakeObservedComponents = [];
+        $this->supervisorPrograms = [];
         $this->databaseEngine = 'mariadb';
         $this->postgresqlConfigured = false;
         $this->vhosts = [
@@ -112,7 +119,7 @@ final class FakeBroker
                 'vhost.list' => ['vhosts' => $this->vhosts],
                 'vhost.add' => $this->vhostAdd($args, $stdin),
                 'vhost.edit' => $this->vhostEdit($args, $stdin),
-                'vhost.del' => $this->vhostDel($args),
+                'vhost.del' => $this->vhostDel($args, $stdin),
                 'db.list' => ['engine' => $this->databaseEngine, 'databases' => $this->databases],
                 'db.engine' => $this->dbEngine(),
                 'db.dump' => $this->dbDump($args),
@@ -156,6 +163,13 @@ final class FakeBroker
                 'php.opcache.reset' => ['php_version' => $args[0] ?? '8.4', 'reset' => true, 'available' => true],
                 'cron.list' => ['lines' => ['# comment', '0 3 * * * /usr/bin/true'], 'warning' => 'These entries run as root.'],
                 'cron.set' => ['updated' => true, 'count' => count($stdin['lines'] ?? [])],
+                'supervisor.program.list' => $this->supervisorProgramList(),
+                'supervisor.program.create' => $this->supervisorProgramCreate($stdin),
+                'supervisor.program.update' => $this->supervisorProgramUpdate($args, $stdin),
+                'supervisor.program.delete' => $this->supervisorProgramDelete($args),
+                'supervisor.program.status' => $this->supervisorProgramStatus($args),
+                'supervisor.program.start', 'supervisor.program.stop', 'supervisor.program.restart' => $this->supervisorProgramControl($action, $args),
+                'supervisor.program.logs' => $this->supervisorProgramLogs($args, $stdin),
                 default => throw new BrokerCallException('Unknown action.', 2),
             };
             return new BrokerResponse(true, $data, null, 0);
@@ -389,9 +403,25 @@ final class FakeBroker
         throw new BrokerCallException('Vhost config does not exist.', 3);
     }
 
-    private function vhostDel(array $args): array
+    private function vhostDel(array $args, array $stdin = []): array
     {
         $domain = $args[0] ?? '';
+        $linked = [];
+        foreach ($this->supervisorPrograms as $name => $program) {
+            if (($program['vhost_domain'] ?? null) === $domain) {
+                $linked[] = $name;
+            }
+        }
+        if ($linked !== [] && !($stdin['remove_supervisor_programs'] ?? false)) {
+            throw new BrokerCallException(
+                'Vhost '.$domain.' has supervisor process(es): '.implode(', ', $linked)
+                .'. Remove them first, or pass remove_supervisor_programs=true to delete with the vhost.',
+                3
+            );
+        }
+        foreach ($linked as $name) {
+            unset($this->supervisorPrograms[$name]);
+        }
         foreach ($this->vhosts as $i => $v) {
             if ($v['domain'] !== $domain) {
                 continue;
@@ -512,6 +542,15 @@ final class FakeBroker
             ['id' => 'redis', 'display_name' => 'Redis', 'category' => 'cache', 'system' => false, 'status' => 'not_installed', 'installable' => true, 'unit' => 'redis-server'],
             ['id' => 'memcached', 'display_name' => 'Memcached', 'category' => 'cache', 'system' => false, 'status' => 'not_installed', 'installable' => true, 'unit' => 'memcached'],
             [
+                'id' => 'supervisor',
+                'display_name' => 'Supervisor',
+                'category' => 'process-manager',
+                'system' => false,
+                'status' => 'not_installed',
+                'installable' => true,
+                'unit' => 'supervisor',
+            ],
+            [
                 'id' => 'nodejs',
                 'display_name' => 'Node.js',
                 'category' => 'runtime',
@@ -558,7 +597,7 @@ final class FakeBroker
     private function installableComponentIds(): array
     {
         return [
-            'redis', 'mariadb', 'postgresql', 'nginx', 'apache',
+            'redis', 'mariadb', 'postgresql', 'nginx', 'apache', 'supervisor',
             'memcached', 'mongodb', 'nodejs', 'php-8.1', 'php-8.2', 'php-8.3',
         ];
     }
@@ -683,6 +722,141 @@ final class FakeBroker
             'path' => '/var/lib/azerioid-panel/staging/operations/'.$opKey.'.log',
             'lines' => ['INFO fake install log line'],
             'missing' => false,
+        ];
+    }
+
+    private function assertSupervisorInstalled(): void
+    {
+        if (!isset($this->fakeInstalledComponents['supervisor'])) {
+            throw new BrokerCallException('Supervisor is not installed. Install it from Components first.', 3);
+        }
+    }
+
+    /** @return array<string, mixed> */
+    private function supervisorProgramList(): array
+    {
+        $this->assertSupervisorInstalled();
+        $programs = [];
+        foreach ($this->supervisorPrograms as $name => $row) {
+            $programs[] = $row + [
+                'name' => $name,
+                'supervisor_name' => 'azerioid-'.$name,
+                'status' => ['state' => $row['state'] ?? 'stopped', 'raw' => $row['status_raw'] ?? 'STOPPED'],
+            ];
+        }
+
+        return ['programs' => $programs];
+    }
+
+    /** @param array<string, mixed> $stdin */
+    private function supervisorProgramCreate(array $stdin): array
+    {
+        $this->assertSupervisorInstalled();
+        if (isset($stdin['user']) || isset($stdin['run_as'])) {
+            $user = strtolower(trim((string) ($stdin['user'] ?? $stdin['run_as'] ?? '')));
+            if ($user === '' || $user === 'root' || $user !== 'azerioid-supervised') {
+                throw new BrokerCallException('Refusing privileged or disallowed run-as user for supervisor programs.', 3);
+            }
+        }
+        $name = \AzerioidPanel\Broker\Validator::supervisorProgramName((string) ($stdin['name'] ?? ''));
+        if (isset($this->supervisorPrograms[$name])) {
+            throw new BrokerCallException("Supervisor program {$name} already exists.", 2);
+        }
+        $this->supervisorPrograms[$name] = [
+            'command' => (string) ($stdin['command'] ?? ''),
+            'directory' => (string) ($stdin['directory'] ?? ''),
+            'user' => 'azerioid-supervised',
+            'autostart' => (bool) ($stdin['autostart'] ?? true),
+            'autorestart' => (bool) ($stdin['autorestart'] ?? true),
+            'vhost_domain' => $stdin['vhost_domain'] ?? null,
+            'log_stdout' => '/var/log/azerioid-supervised/'.$name.'.stdout.log',
+            'log_stderr' => '/var/log/azerioid-supervised/'.$name.'.stderr.log',
+            'state' => 'running',
+            'status_raw' => 'RUNNING pid 1234',
+        ];
+
+        return ['created' => true, 'name' => $name, 'program' => $this->supervisorPrograms[$name]];
+    }
+
+    /** @param array<string, mixed> $stdin */
+    private function supervisorProgramUpdate(array $args, array $stdin): array
+    {
+        $this->assertSupervisorInstalled();
+        if (isset($stdin['user']) || isset($stdin['run_as'])) {
+            throw new BrokerCallException('Only the dedicated supervised user (azerioid-supervised) may run panel-managed processes.', 3);
+        }
+        $name = \AzerioidPanel\Broker\Validator::supervisorProgramName($args[0] ?? ($stdin['name'] ?? ''));
+        if (!isset($this->supervisorPrograms[$name])) {
+            throw new BrokerCallException("Supervisor program {$name} not found.", 2);
+        }
+        $before = $this->supervisorPrograms[$name];
+        foreach (['command', 'directory', 'autostart', 'autorestart', 'vhost_domain'] as $key) {
+            if (array_key_exists($key, $stdin)) {
+                $this->supervisorPrograms[$name][$key] = $stdin[$key];
+            }
+        }
+        $this->supervisorPrograms[$name]['user'] = 'azerioid-supervised';
+
+        return ['updated' => true, 'name' => $name, 'before' => $before, 'after' => $this->supervisorPrograms[$name]];
+    }
+
+    /** @param list<string> $args */
+    private function supervisorProgramDelete(array $args): array
+    {
+        $name = \AzerioidPanel\Broker\Validator::supervisorProgramName($args[0] ?? '');
+        if (!isset($this->supervisorPrograms[$name])) {
+            throw new BrokerCallException("Supervisor program {$name} not found.", 2);
+        }
+        unset($this->supervisorPrograms[$name]);
+
+        return ['deleted' => true, 'name' => $name];
+    }
+
+    /** @param list<string> $args */
+    private function supervisorProgramStatus(array $args): array
+    {
+        $name = \AzerioidPanel\Broker\Validator::supervisorProgramName($args[0] ?? '');
+        if (!isset($this->supervisorPrograms[$name])) {
+            throw new BrokerCallException("Supervisor program {$name} not found.", 2);
+        }
+
+        return [
+            'name' => $name,
+            'supervisor_name' => 'azerioid-'.$name,
+            'status' => ['state' => $this->supervisorPrograms[$name]['state'] ?? 'stopped', 'raw' => ''],
+        ];
+    }
+
+    /** @param list<string> $args */
+    private function supervisorProgramControl(string $action, array $args): array
+    {
+        $name = \AzerioidPanel\Broker\Validator::supervisorProgramName($args[0] ?? '');
+        if (!isset($this->supervisorPrograms[$name])) {
+            throw new BrokerCallException("Supervisor program {$name} not found.", 2);
+        }
+        $verb = explode('.', $action)[2];
+        $state = match ($verb) {
+            'start', 'restart' => 'running',
+            'stop' => 'stopped',
+            default => 'stopped',
+        };
+        $this->supervisorPrograms[$name]['state'] = $state;
+
+        return ['name' => $name, 'action' => $verb, 'output' => strtoupper($verb).' '.$name, 'status' => ['state' => $state, 'raw' => '']];
+    }
+
+    /** @param list<string> $args @param array<string, mixed> $stdin */
+    private function supervisorProgramLogs(array $args, array $stdin): array
+    {
+        $name = \AzerioidPanel\Broker\Validator::supervisorProgramName($args[0] ?? '');
+        if (!isset($this->supervisorPrograms[$name])) {
+            throw new BrokerCallException("Supervisor program {$name} not found.", 2);
+        }
+
+        return [
+            'name' => $name,
+            'stdout' => "fake stdout for {$name}\nline 2",
+            'stderr' => '',
         ];
     }
 }

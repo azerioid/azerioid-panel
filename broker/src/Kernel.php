@@ -42,6 +42,7 @@ use AzerioidPanel\Broker\Actions\ServiceControl;
 use AzerioidPanel\Broker\Actions\ServiceStatus;
 use AzerioidPanel\Broker\Actions\SpacesTest;
 use AzerioidPanel\Broker\Actions\StatusAll;
+use AzerioidPanel\Broker\Actions\SupervisorProgram;
 use AzerioidPanel\Broker\Actions\SystemReboot;
 use AzerioidPanel\Broker\Actions\SystemRebootRequired;
 use AzerioidPanel\Broker\Actions\TlsCerts;
@@ -117,6 +118,15 @@ final class Kernel
         'firewall.fail2ban.install' => Fail2banInstall::class,
         'cron.list' => CronManage::class,
         'cron.set' => CronManage::class,
+        'supervisor.program.list' => SupervisorProgram::class,
+        'supervisor.program.create' => SupervisorProgram::class,
+        'supervisor.program.update' => SupervisorProgram::class,
+        'supervisor.program.delete' => SupervisorProgram::class,
+        'supervisor.program.status' => SupervisorProgram::class,
+        'supervisor.program.start' => SupervisorProgram::class,
+        'supervisor.program.stop' => SupervisorProgram::class,
+        'supervisor.program.restart' => SupervisorProgram::class,
+        'supervisor.program.logs' => SupervisorProgram::class,
     ];
 
     public function __construct(

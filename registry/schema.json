@@ -29,6 +29,7 @@
         "runtime",
         "database",
         "cache",
+        "process-manager",
         "other"
       ]
     },

@@ -7,6 +7,7 @@ use AzerioidPanel\Broker\BrokerException;
 use AzerioidPanel\Broker\Config;
 use AzerioidPanel\Broker\Database\DatabaseProvisioner;
 use AzerioidPanel\Broker\Runtime;
+use AzerioidPanel\Broker\Supervisor\SupervisedUser;
 use AzerioidPanel\Broker\Systemd;
 use AzerioidPanel\Broker\Validator;
 
@@ -57,6 +58,13 @@ final class ComponentInstaller
             }
             if ($componentId === 'mongodb') {
                 (new MongoProvisioner($this->config, $this->runtime))->provision($log);
+            }
+            if ($componentId === 'supervisor') {
+                SupervisedUser::ensure($this->runtime);
+                if (!$this->runtime->isDir('/etc/supervisor/conf.d')) {
+                    $this->runtime->mkdir('/etc/supervisor/conf.d', 0755);
+                }
+                $log->info('Ensured dedicated supervised user and conf.d directory.');
             }
             ManagedManifest::record($this->runtime, $this->config->managedComponentsPath, $componentId, [
                 'unit' => $unit,

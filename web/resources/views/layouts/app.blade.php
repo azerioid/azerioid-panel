@@ -29,6 +29,7 @@
                         ['databases', 'Databases', '/databases'],
                         ['backups', 'Backups', '/backups'],
                         ['services', 'Services', '/services'],
+                        ['processes', 'Processes', '/processes'],
                         ['components', 'Components', '/components'],
                         ['logs', 'Logs', '/logs'],
                         ['security', 'Security', '/security'],
@@ -64,6 +65,7 @@
                 <a href="/backups" class="shrink-0 text-zinc-400">Backups</a>
                 <a href="/components" class="shrink-0 text-zinc-400">Components</a>
                 <a href="/services" class="shrink-0 text-zinc-400">Services</a>
+                <a href="/processes" class="shrink-0 text-zinc-400">Processes</a>
                 <a href="/logs" class="shrink-0 text-zinc-400">Logs</a>
                 <a href="/security" class="shrink-0 text-zinc-400">Security</a>
                 <a href="/audit" class="shrink-0 text-zinc-400">Audit</a>

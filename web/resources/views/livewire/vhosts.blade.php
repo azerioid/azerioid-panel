@@ -105,9 +105,12 @@
                         <td class="px-4 py-3 font-mono">{{ $v['php_version'] ?? '—' }}</td>
                         <td class="px-4 py-3">{{ !empty($v['tls']) ? 'yes' : 'http' }}</td>
                         <td class="px-4 py-3 text-right space-x-3">
+                            @if (!empty($supervisorByVhost[$v['domain'] ?? '']))
+                                <a href="/processes" class="text-xs text-accent" title="Supervisor processes">{{ count($supervisorByVhost[$v['domain']]) }} proc</a>
+                            @endif
                             @if (empty($v['readonly']))
                                 <button type="button" class="text-xs text-accent" wire:click="startEdit('{{ $v['domain'] }}')">Edit</button>
-                                <button type="button" class="text-xs text-bad" wire:click="delete('{{ $v['domain'] }}')" wire:confirm="Delete vhost {{ $v['domain'] }}? Files will be kept.">Delete</button>
+                                <button type="button" class="text-xs text-bad" wire:click="askDelete('{{ $v['domain'] }}')">Delete</button>
                             @endif
                         </td>
                     </tr>
@@ -117,4 +120,24 @@
             </tbody>
         </table>
     </div>
+
+    @if ($confirmDelete)
+        <div class="panel border border-warn/40 p-5">
+            <p class="text-sm">Delete vhost <span class="font-mono">{{ $confirmDelete }}</span>? Website files will be kept.</p>
+            @if (!empty($supervisorByVhost[$confirmDelete]))
+                <p class="mt-2 text-sm text-warn">
+                    This vhost has supervisor process(es):
+                    <span class="font-mono">{{ implode(', ', $supervisorByVhost[$confirmDelete]) }}</span>
+                </p>
+                <label class="mt-3 flex items-center gap-2 text-sm text-zinc-400">
+                    <input type="checkbox" class="rounded border-white/10 bg-ink-800" wire:model="removeSupervisorOnDelete">
+                    Also remove linked supervisor processes
+                </label>
+            @endif
+            <div class="mt-3 flex gap-2">
+                <button class="btn-primary" wire:click="delete">Confirm delete</button>
+                <button class="btn-ghost" wire:click="$set('confirmDelete', null)">Cancel</button>
+            </div>
+        </div>
+    @endif
 </div>

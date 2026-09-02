@@ -11,6 +11,8 @@ final class Validator
     public const SERVICE_PATTERN = '/^[a-z][a-z0-9@._-]{0,63}$/';
     public const ACTION_PATTERN = '/^[a-z][a-z0-9]*(\.[a-z][a-z0-9-]*)+$/';
     public const COMPONENT_ID_PATTERN = '/^[a-z][a-z0-9.-]{0,63}$/';
+    public const SUPERVISOR_PROGRAM_PATTERN = '/^[a-z][a-z0-9_-]{0,48}$/';
+    public const SUPERVISOR_COMMAND_PATTERN = '/^[^\0\n\r;|&`$]{1,512}$/u';
     public const INI_KEY_PATTERN = '/^[a-zA-Z0-9_.]{1,64}$/';
     public const LOCAL_UPSTREAM_PATTERN = '/^127\.0\.0\.1:([1-9][0-9]{0,4})$/';
 
@@ -161,6 +163,57 @@ final class Validator
         }
 
         return $resolved;
+    }
+
+    public static function supervisorProgramName(string $name): string
+    {
+        $name = strtolower(trim($name));
+        if ($name === '' || !preg_match(self::SUPERVISOR_PROGRAM_PATTERN, $name)) {
+            throw new BrokerException('Invalid supervisor program name.', 2);
+        }
+        if (str_starts_with($name, 'azerioid-')) {
+            throw new BrokerException('Program name must not include the azerioid- prefix (added automatically).', 2);
+        }
+
+        return $name;
+    }
+
+    public static function supervisorCommand(string $command): string
+    {
+        $command = trim($command);
+        if ($command === '' || !preg_match(self::SUPERVISOR_COMMAND_PATTERN, $command)) {
+            throw new BrokerException('Invalid supervisor command.', 2);
+        }
+
+        return $command;
+    }
+
+    /**
+     * Working directory for supervised processes: under www_root or the dedicated supervised home.
+     */
+    public static function supervisedDirectory(string $path, string $wwwRoot, Runtime $runtime): string
+    {
+        try {
+            return self::webRoot($path, $wwwRoot, $runtime);
+        } catch (BrokerException) {
+            // fall through
+        }
+
+        $home = \AzerioidPanel\Broker\Supervisor\SupervisedUser::HOME;
+        $path = trim($path);
+        if ($path === '' || str_contains($path, "\0") || str_contains($path, '..')) {
+            throw new BrokerException('Invalid working directory.', 2);
+        }
+        if (!str_starts_with($path, '/')) {
+            throw new BrokerException('Working directory must be an absolute path.', 2);
+        }
+        $normalized = self::normalizeAbsolute($path);
+        $homeNormalized = self::normalizeAbsolute($home);
+        if (!str_starts_with($normalized . '/', $homeNormalized . '/') && $normalized !== $homeNormalized) {
+            throw new BrokerException('Working directory must be under the web root or supervised home.', 2);
+        }
+
+        return $normalized;
     }
 
     public static function service(string $name, array $allowed): string
