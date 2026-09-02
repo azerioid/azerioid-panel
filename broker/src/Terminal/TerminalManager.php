@@ -94,7 +94,7 @@ final class TerminalManager
         }
 
         $session = $store['sessions'][$sessionId];
-        $this->killProcess((int) ($session['pid'] ?? 0));
+        $this->stopTtyd($sessionId, (int) ($session['pid'] ?? 0));
         unset($store['sessions'][$sessionId]);
         $this->saveSessions($store);
         $this->syncCaddyRoutes($store['sessions']);
@@ -176,12 +176,12 @@ final class TerminalManager
             $expires = strtotime((string) ($session['expires_at'] ?? '')) ?: 0;
             $pid = (int) ($session['pid'] ?? 0);
             if ($expires > 0 && $expires < $now) {
-                $this->killProcess($pid);
+                $this->stopTtyd((string) $id, $pid);
                 unset($store['sessions'][$id]);
                 $removed[] = (string) $id;
                 continue;
             }
-            if ($pid > 0 && !$this->processAlive($pid)) {
+            if (!$this->ttydSessionAlive((string) $id, $pid)) {
                 unset($store['sessions'][$id]);
                 $removed[] = (string) $id;
             }
@@ -200,7 +200,7 @@ final class TerminalManager
         $store = $this->sessions();
         foreach ($store['sessions'] as $id => $session) {
             if (($session['domain'] ?? '') === $domain) {
-                $this->killProcess((int) ($session['pid'] ?? 0));
+                $this->stopTtyd((string) $id, (int) ($session['pid'] ?? 0));
                 unset($store['sessions'][$id]);
             }
         }
@@ -241,22 +241,38 @@ final class TerminalManager
 
     private function spawnTtyd(string $sessionId, int $port, string $username, string $root): int
     {
+        if (!$this->runtime->fileExists('/usr/bin/systemd-run')) {
+            throw new BrokerException('systemd-run is not installed; cannot start terminal session.', 3);
+        }
+
+        $runuser = $this->runuserBin();
+        $unit = $this->ttydUnit($sessionId);
         $base = '/terminal/' . $sessionId;
         $log = '/var/log/azerioid-panel/ttyd-' . $sessionId . '.log';
-        $cmd = sprintf(
-            'nohup /usr/bin/runuser -u %s -- %s -p %d -i 127.0.0.1 -W -b %s -d %s -t disableReconnect=true /bin/bash -l >> %s 2>&1 & echo $!',
-            escapeshellarg($username),
-            escapeshellarg($this->config->ttydBin),
-            $port,
-            escapeshellarg($base),
-            escapeshellarg($root),
-            escapeshellarg($log)
-        );
-        $result = $this->runtime->exec(['/bin/sh', '-c', $cmd], null, 15);
+        $result = $this->runtime->exec([
+            '/usr/bin/systemd-run',
+            '--quiet',
+            '--unit=' . $unit,
+            '-p', 'StandardOutput=append:' . $log,
+            '-p', 'StandardError=append:' . $log,
+            $runuser,
+            '-u', $username,
+            '--',
+            $this->config->ttydBin,
+            '-p', (string) $port,
+            '-i', '127.0.0.1',
+            '-W',
+            '-b', $base,
+            '-w', $root,
+            '-t', 'disableReconnect=true',
+            '/bin/bash',
+            '-l',
+        ], null, 15);
         if (!$result->ok()) {
-            throw new BrokerException('Failed to start ttyd: ' . trim($result->stderr), 1);
+            throw new BrokerException('Failed to start ttyd: ' . trim($result->stderr !== '' ? $result->stderr : $result->stdout), 1);
         }
-        $pid = (int) trim($result->stdout);
+
+        $pid = $this->ttydMainPid($sessionId);
         if ($pid < 1) {
             throw new BrokerException('Failed to start ttyd (no pid).', 1);
         }
@@ -309,7 +325,7 @@ final class TerminalManager
             if ($id === '' || $port < 1) {
                 continue;
             }
-            $lines[] = "handle_path /terminal/{$id}/* {";
+            $lines[] = "handle /terminal/{$id}/* {";
             $lines[] = "    forward_auth {$auth} {";
             $lines[] = "        uri /internal/terminal/auth/{$id}";
             $lines[] = '    }';
@@ -373,6 +389,60 @@ final class TerminalManager
         }
     }
 
+    private function stopTtyd(string $sessionId, int $fallbackPid = 0): void
+    {
+        if ($this->runtime->fileExists('/bin/systemctl')) {
+            $unit = $this->ttydUnit($sessionId);
+            $this->runtime->exec(['/bin/systemctl', 'stop', $unit], null, 15);
+            $this->runtime->exec(['/bin/systemctl', 'reset-failed', $unit], null, 5);
+        }
+        if ($fallbackPid > 0) {
+            $this->killProcess($fallbackPid);
+        }
+    }
+
+    private function ttydSessionAlive(string $sessionId, int $fallbackPid): bool
+    {
+        if ($this->runtime->fileExists('/bin/systemctl')) {
+            $result = $this->runtime->exec(['/bin/systemctl', 'is-active', $this->ttydUnit($sessionId)], null, 5);
+            $state = trim($result->stdout);
+            if ($state === 'active' || $state === 'activating') {
+                return true;
+            }
+            if ($state === 'inactive' || $state === 'failed') {
+                return false;
+            }
+        }
+
+        return $fallbackPid > 0 && $this->processAlive($fallbackPid);
+    }
+
+    private function ttydMainPid(string $sessionId): int
+    {
+        for ($attempt = 0; $attempt < 10; $attempt++) {
+            $result = $this->runtime->exec([
+                '/bin/systemctl',
+                'show',
+                $this->ttydUnit($sessionId),
+                '-p',
+                'MainPID',
+                '--value',
+            ], null, 5);
+            $pid = (int) trim($result->stdout);
+            if ($pid > 0) {
+                return $pid;
+            }
+            usleep(100_000);
+        }
+
+        return 0;
+    }
+
+    private function ttydUnit(string $sessionId): string
+    {
+        return 'az-terminal-' . $sessionId;
+    }
+
     private function processAlive(int $pid): bool
     {
         if ($pid < 1) {
@@ -380,5 +450,16 @@ final class TerminalManager
         }
 
         return $this->runtime->exec(['/bin/kill', '-0', (string) $pid], null, 5)->ok();
+    }
+
+    private function runuserBin(): string
+    {
+        foreach (['/usr/sbin/runuser', '/sbin/runuser', '/usr/bin/runuser'] as $bin) {
+            if ($this->runtime->fileExists($bin)) {
+                return $bin;
+            }
+        }
+
+        throw new BrokerException('runuser is not installed; cannot start terminal as vhost user.', 3);
     }
 }

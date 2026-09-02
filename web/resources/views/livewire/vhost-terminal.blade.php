@@ -26,26 +26,103 @@
         <script>
         (function () {
             const panel = document.getElementById('vhost-terminal-panel');
-            if (!panel || !window.Terminal) return;
+            if (!panel || !window.Terminal || panel.dataset.initialized === '1') return;
+            panel.dataset.initialized = '1';
+
             const sessionId = panel.dataset.sessionId;
             const wsPath = panel.dataset.wsPath;
             const csrf = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+            const encoder = new TextEncoder();
+            const decoder = new TextDecoder();
+
+            const Command = { OUTPUT: '0', INPUT: '0', RESIZE: '1' };
+
             const term = new Terminal({
                 cursorBlink: true,
                 fontFamily: 'ui-monospace, Menlo, Monaco, Consolas, monospace',
                 fontSize: 13,
-                theme: { background: '#0a0a0a' },
+                theme: { background: '#0a0a0a', foreground: '#e4e4e7' },
             });
-            const fit = window.FitAddon ? new window.FitAddon.FitAddon() : null;
+            const FitAddonCtor = window.FitAddon?.FitAddon ?? window.FitAddon;
+            const fit = FitAddonCtor ? new FitAddonCtor() : null;
             if (fit) term.loadAddon(fit);
             term.open(document.getElementById('terminal-host'));
             fit?.fit();
             window.addEventListener('resize', () => fit?.fit());
-            const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const socket = new WebSocket(`${proto}//${location.host}${wsPath}/ws`);
-            socket.onmessage = (e) => term.write(e.data);
-            term.onData((d) => { if (socket.readyState === WebSocket.OPEN) socket.send(d); });
-            socket.onclose = () => term.writeln('\r\n\r\n[session closed]');
+
+            let socket = null;
+            let stopping = false;
+            let closedShown = false;
+
+            const sendInput = (data) => {
+                if (!socket || socket.readyState !== WebSocket.OPEN) return;
+                const payload = typeof data === 'string'
+                    ? encoder.encode(data)
+                    : data;
+                const frame = new Uint8Array(payload.length + 1);
+                frame[0] = Command.INPUT.charCodeAt(0);
+                frame.set(payload, 1);
+                socket.send(frame);
+            };
+
+            const sendResize = () => {
+                if (!socket || socket.readyState !== WebSocket.OPEN) return;
+                const msg = JSON.stringify({ columns: term.cols, rows: term.rows });
+                socket.send(encoder.encode(Command.RESIZE + msg));
+            };
+
+            const connect = async () => {
+                let token = '';
+                try {
+                    const resp = await fetch(`${wsPath}/token`, { credentials: 'same-origin' });
+                    if (resp.ok) {
+                        const json = await resp.json();
+                        token = json.token ?? '';
+                    }
+                } catch (_) {}
+
+                const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+                socket = new WebSocket(`${proto}//${location.host}${wsPath}/ws`, ['tty']);
+                socket.binaryType = 'arraybuffer';
+
+                socket.onopen = () => {
+                    closedShown = false;
+                    const auth = JSON.stringify({
+                        AuthToken: token,
+                        columns: term.cols,
+                        rows: term.rows,
+                    });
+                    socket.send(encoder.encode(auth));
+                    sendResize();
+                    term.focus();
+                };
+
+                socket.onmessage = (event) => {
+                    const raw = event.data;
+                    if (!(raw instanceof ArrayBuffer)) return;
+                    const bytes = new Uint8Array(raw);
+                    if (bytes.length === 0) return;
+                    const cmd = String.fromCharCode(bytes[0]);
+                    const data = bytes.slice(1);
+                    if (cmd === Command.OUTPUT) {
+                        term.write(data);
+                    }
+                };
+
+                term.onData(sendInput);
+                term.onResize(() => sendResize());
+
+                socket.onclose = () => {
+                    if (stopping || closedShown) return;
+                    closedShown = true;
+                    term.writeln('\r\n\r\n[session closed]');
+                };
+            };
+
+            connect().catch(() => {
+                term.writeln('\r\n\r\n[session closed]');
+            });
+
             const heartbeat = setInterval(() => {
                 fetch(`/terminal/heartbeat/${sessionId}`, {
                     method: 'POST',
@@ -53,13 +130,17 @@
                     credentials: 'same-origin',
                 }).catch(() => {});
             }, 60000);
+
             const stop = () => {
+                if (stopping) return;
+                stopping = true;
                 clearInterval(heartbeat);
+                try { socket?.close(1000); } catch (_) {}
                 const body = new URLSearchParams({ _token: csrf });
                 navigator.sendBeacon(`/terminal/stop/${sessionId}`, body);
             };
+
             window.addEventListener('beforeunload', stop);
-            window.addEventListener('pagehide', stop);
         })();
         </script>
     @endif

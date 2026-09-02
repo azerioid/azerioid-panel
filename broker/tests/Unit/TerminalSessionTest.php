@@ -28,6 +28,9 @@ final class TerminalSessionTest extends TestCase
 
         $this->rt->files['/etc/caddy/Caddyfile'] = "{\n    admin off\n}\nimport /etc/caddy/conf.d/*.conf\n";
         $this->rt->files['/usr/local/bin/ttyd'] = 'fake';
+        $this->rt->files['/usr/sbin/runuser'] = 'fake';
+        $this->rt->files['/usr/bin/systemd-run'] = 'fake';
+        $this->rt->files['/bin/systemctl'] = 'fake';
         $this->rt->files['/etc/caddy/conf.d/shop.example.com.conf'] = <<<'CADDY'
 shop.example.com {
     root * /data/www/shop.example.com
@@ -66,7 +69,11 @@ CADDY;
         $this->assertSame('shop.example.com', $json['data']['domain']);
         $this->assertStringStartsWith('az-vh-', $json['data']['username']);
         $this->assertStringContainsString('/terminal/', $json['data']['ws_path']);
-        $this->assertStringContainsString('handle_path /terminal/', $this->rt->files[$this->cfg->terminalCaddyRoutesPath] ?? '');
+        $this->assertStringContainsString('handle /terminal/', $this->rt->files[$this->cfg->terminalCaddyRoutesPath] ?? '');
+        $spawn = json_encode($this->rt->execLog);
+        $this->assertStringContainsString('/usr/bin/systemd-run', $spawn);
+        $this->assertStringContainsString('az-terminal-', $spawn);
+        $this->assertStringContainsString('-w /data/www/shop.example.com', $spawn);
     }
 
     public function test_rejects_readonly_vhost_terminal(): void
