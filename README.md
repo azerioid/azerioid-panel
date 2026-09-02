@@ -54,6 +54,12 @@ sudo ./deploy/test/smoke-p1.sh
 sudo ./deploy/uninstall.sh --drop-db --remove-bootstrap
 ```
 
+Full teardown (panel + managed components + repos; still skips `/data/www`):
+
+```bash
+sudo ./deploy/uninstall.sh --full
+```
+
 ## Phase 7 scope
 
 - `sudo ./deploy/migrate.sh` — legacy MariaDB panel DB (`lacmp_panel`) → SQLite

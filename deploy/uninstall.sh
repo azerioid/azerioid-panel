@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Reverse Stack Manager bootstrap. Never touches /data/www or user site data.
+# Reverse Stack Manager bootstrap. Never touches /data/www or user site data by default.
 set -euo pipefail
 
 if [[ ${EUID} -ne 0 ]]; then
@@ -9,15 +9,25 @@ fi
 
 PREFIX="${PREFIX:-/usr/local/lib/azerioid-panel}"
 PANEL_PHP_VERSION="${PANEL_PHP_VERSION:-8.4}"
+MANAGED_MANIFEST="/var/lib/azerioid-panel/managed-components.json"
 DROP_DB=0
 REMOVE_BOOTSTRAP=0
+PURGE_MANAGED=0
+PURGE_REPOS=0
+PURGE_PACKAGE_DATA=0
 
 usage() {
     cat <<'EOF'
-Usage: uninstall.sh [--drop-db] [--remove-bootstrap]
+Usage: uninstall.sh [options]
 
-  --drop-db            Remove panel SQLite and /etc/azerioid-panel secrets
-  --remove-bootstrap   Remove Caddy/PHP only if bootstrap.json says installer added them
+  --drop-db              Remove panel SQLite and /etc/azerioid-panel secrets
+  --remove-bootstrap     Remove Caddy/PHP only if bootstrap.json says installer added them
+  --purge-managed        Uninstall broker-managed components (Redis, MariaDB, Nginx, …)
+  --purge-repos          Remove panel-added apt/yum repo entries and keyrings
+  --purge-package-data   Remove engine data dirs (/var/lib/mysql, mongodb, postgresql)
+  --full                 --drop-db --remove-bootstrap --purge-managed --purge-repos --purge-package-data
+
+  /data/www and customer site databases are never modified.
 EOF
 }
 
@@ -25,14 +35,86 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --drop-db) DROP_DB=1; shift ;;
         --remove-bootstrap) REMOVE_BOOTSTRAP=1; shift ;;
+        --purge-managed) PURGE_MANAGED=1; shift ;;
+        --purge-repos) PURGE_REPOS=1; shift ;;
+        --purge-package-data) PURGE_PACKAGE_DATA=1; shift ;;
+        --full)
+            DROP_DB=1
+            REMOVE_BOOTSTRAP=1
+            PURGE_MANAGED=1
+            PURGE_REPOS=1
+            PURGE_PACKAGE_DATA=1
+            shift
+            ;;
         -h|--help) usage; exit 0 ;;
         *) echo "Unknown argument: $1" >&2; usage >&2; exit 2 ;;
     esac
 done
 
+purge_managed_components() {
+    local broker="${PREFIX}/broker"
+    [[ -x "${broker}" ]] || { echo "Warning: broker not found; skipping --purge-managed" >&2; return 0; }
+    [[ -f "${MANAGED_MANIFEST}" ]] || return 0
+
+    local ids
+    ids="$(python3 - "${MANAGED_MANIFEST}" <<'PY'
+import json, pathlib, sys
+data = json.loads(pathlib.Path(sys.argv[1]).read_text())
+for cid in sorted(data.get("components", {}).keys(), reverse=True):
+    print(cid)
+PY
+)" || return 0
+
+    local id op n=0
+    while IFS= read -r id; do
+        [[ -n "${id}" ]] || continue
+        op="uninstall-$(echo "${id}" | tr -c 'a-zA-Z0-9_' '_')"
+        echo "==> Uninstalling managed component: ${id}"
+        if echo "{\"operation_id\":\"${op}\"}" | "${broker}" component.uninstall "${id}" >/dev/null 2>&1; then
+            echo "    removed ${id}"
+        else
+            echo "    warning: broker could not uninstall ${id} (may already be gone)" >&2
+        fi
+        n=$((n + 1))
+    done <<< "${ids}"
+    [[ "${n}" -gt 0 ]] || echo "==> No managed components recorded"
+    rm -f "${MANAGED_MANIFEST}"
+}
+
+purge_panel_repos() {
+    echo "==> Removing panel-added package repositories"
+    rm -f /etc/apt/sources.list.d/caddy-stable.list \
+        /etc/apt/sources.list.d/php-sury.list \
+        /etc/apt/sources.list.d/php.list \
+        /etc/apt/sources.list.d/mongodb-org-*.list \
+        /etc/apt/sources.list.d/nodesource*.list \
+        /etc/yum.repos.d/caddy.repo 2>/dev/null || true
+    rm -f /usr/share/keyrings/caddy-stable-archive-keyring.gpg \
+        /usr/share/keyrings/php-sury-archive-keyring.gpg \
+        /usr/share/keyrings/mongodb-server-*.gpg 2>/dev/null || true
+    rm -f /etc/pki/rpm-gpg/RPM-GPG-KEY-caddy 2>/dev/null || true
+    rm -f /etc/azerioid-panel/nodesource-*.installed 2>/dev/null || true
+}
+
+purge_engine_data_dirs() {
+    echo "==> Removing panel-provisioned engine data directories"
+    systemctl stop mariadb postgresql mongod redis-server memcached nginx 2>/dev/null || true
+    rm -rf /var/lib/mysql /var/lib/mongodb /var/lib/postgresql \
+        /var/log/mysql /var/log/mongodb /var/log/postgresql 2>/dev/null || true
+}
+
+purge_released_caddy_state() {
+    rm -rf /var/lib/azerioid-panel/staging/released-caddy-vhosts-* 2>/dev/null || true
+    rm -f /var/lib/azerioid-panel/staging/caddyfile.pre-release-*.bak 2>/dev/null || true
+}
+
 WEB_USER=caddy
 id -u caddy >/dev/null 2>&1 || WEB_USER=www-data
 id -u "${WEB_USER}" >/dev/null 2>&1 || WEB_USER=apache
+
+if [[ "${PURGE_MANAGED}" -eq 1 ]]; then
+    purge_managed_components
+fi
 
 systemctl stop azerioid-panel-queue.service 2>/dev/null || true
 systemctl disable azerioid-panel-queue.service 2>/dev/null || true
@@ -54,6 +136,7 @@ if [[ -f "${SNIPPET}" ]]; then
     rm -f "${SNIPPET}"
     systemctl reload caddy 2>/dev/null || true
 fi
+purge_released_caddy_state
 
 POOL=""
 [[ -d "/etc/php/${PANEL_PHP_VERSION}/fpm/pool.d" ]] && POOL="/etc/php/${PANEL_PHP_VERSION}/fpm/pool.d"
@@ -79,6 +162,7 @@ if [[ "${DROP_DB}" -eq 1 ]]; then
     rm -rf /var/lib/azerioid-panel/staging
     rm -f /etc/azerioid-panel/broker.json /etc/azerioid-panel/web.env /etc/azerioid-panel/bootstrap.json
     rmdir /etc/azerioid-panel 2>/dev/null || true
+    rmdir /var/lib/azerioid-panel 2>/dev/null || true
 fi
 
 BOOTSTRAP=/etc/azerioid-panel/bootstrap.json
@@ -96,8 +180,30 @@ PY
       dnf -y remove caddy php-fpm php-cli 2>/dev/null || true
     fi
     rm -f "${BOOTSTRAP}"
+    rm -f /etc/caddy/conf.d/*.conf 2>/dev/null || true
+    if [[ -f /etc/caddy/Caddyfile ]] && command -v caddy >/dev/null 2>&1; then
+      cat > /etc/caddy/Caddyfile <<'EOF'
+:80 {
+    root * /usr/share/caddy
+    file_server
+}
+EOF
+      systemctl restart caddy 2>/dev/null || true
+    fi
   fi
 fi
 
+if [[ "${PURGE_REPOS}" -eq 1 ]]; then
+    purge_panel_repos
+fi
+
+if [[ "${PURGE_PACKAGE_DATA}" -eq 1 ]]; then
+    purge_engine_data_dirs
+fi
+
 echo "Stack Manager panel artifacts removed."
+if [[ "${PURGE_MANAGED}" -eq 0 ]]; then
+    echo "  Managed components (MariaDB, Redis, Nginx, …) were left installed."
+    echo "  Re-run with --purge-managed or --full to remove them via the broker."
+fi
 echo "  /data/www and user databases were not modified."

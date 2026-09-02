@@ -1,0 +1,211 @@
+#!/usr/bin/env python3
+"""Verify /setup and /login via HTTP (Livewire), mirroring browser UI flow."""
+from __future__ import annotations
+
+import argparse
+import html
+import json
+import re
+import ssl
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+from http.cookiejar import CookieJar
+from typing import Any
+
+
+def _component_redirect(result: dict[str, Any]) -> str:
+    for comp in result.get("components", []):
+        redirect = comp.get("effects", {}).get("redirect")
+        if redirect:
+            return str(redirect)
+    return str(result.get("effects", {}).get("redirect") or "")
+
+
+def extract_snapshot(page: str) -> tuple[str, str]:
+    m = re.search(r'wire:snapshot="([^"]+)"', page)
+    if not m:
+        raise RuntimeError("wire:snapshot not found on page")
+    snapshot = html.unescape(m.group(1))
+    csrf = re.search(r'<meta name="csrf-token" content="([^"]+)"', page)
+    if not csrf:
+        raise RuntimeError("csrf-token meta not found")
+    return snapshot, csrf.group(1)
+
+
+class PanelClient:
+    def __init__(self, base: str) -> None:
+        self.base = base.rstrip("/")
+        self.jar = CookieJar()
+        ctx = ssl.create_default_context()
+        if self.base.startswith("https://"):
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+        self.opener = urllib.request.build_opener(
+            urllib.request.HTTPCookieProcessor(self.jar),
+            urllib.request.HTTPSHandler(context=ctx),
+        )
+
+    def get(self, path: str) -> tuple[int, str, dict[str, str]]:
+        req = urllib.request.Request(f"{self.base}{path}", method="GET")
+        with self.opener.open(req, timeout=30) as resp:
+            body = resp.read().decode("utf-8", errors="replace")
+            return resp.status, body, dict(resp.headers)
+
+    def livewire_call(
+        self,
+        path: str,
+        snapshot: str,
+        csrf: str,
+        updates: dict[str, Any],
+        method: str,
+    ) -> dict[str, Any]:
+        payload = {
+            "_token": csrf,
+            "components": [
+                {
+                    "snapshot": snapshot,
+                    "updates": updates,
+                    "calls": [{"path": "", "method": method, "params": []}],
+                }
+            ],
+        }
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            f"{self.base}/livewire/update",
+            data=data,
+            method="POST",
+            headers={
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "X-Livewire": "true",
+                "X-CSRF-TOKEN": csrf,
+                "Referer": f"{self.base}{path}",
+            },
+        )
+        with self.opener.open(req, timeout=30) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+
+    def post(self, path: str, csrf: str) -> tuple[int, str]:
+        data = urllib.parse.urlencode({"_token": csrf}).encode("utf-8")
+        req = urllib.request.Request(
+            f"{self.base}{path}",
+            data=data,
+            method="POST",
+            headers={"Referer": f"{self.base}/"},
+        )
+        with self.opener.open(req, timeout=30) as resp:
+            return resp.status, resp.read().decode("utf-8", errors="replace")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="UI-flow setup + first-login verification")
+    parser.add_argument("--base", default="http://127.0.0.1:3169")
+    parser.add_argument("--email", default="azerioid@gmail.com")
+    parser.add_argument("--password", default="AdminPassw0rd!")
+    parser.add_argument("--name", default="Admin")
+    parser.add_argument("--skip-setup", action="store_true")
+    parser.add_argument("--typo-test", action="store_true", help="Try two wrong passwords before real login")
+    args = parser.parse_args()
+
+    client = PanelClient(args.base)
+    evidence: list[str] = []
+
+    if not args.skip_setup:
+        status, page, _ = client.get("/setup")
+        if status != 200:
+            print(f"FAIL setup page HTTP {status}", file=sys.stderr)
+            return 1
+        snapshot, csrf = extract_snapshot(page)
+        result = client.livewire_call(
+            "/setup",
+            snapshot,
+            csrf,
+            {
+                "name": args.name,
+                "email": args.email,
+                "password": args.password,
+                "password_confirmation": args.password,
+            },
+            "createAccount",
+        )
+        redirect = _component_redirect(result)
+        if not redirect:
+            print(f"FAIL setup createAccount: {json.dumps(result)[:500]}", file=sys.stderr)
+            return 1
+        evidence.append(f"setup redirect={redirect}")
+
+        # Log out to prove fresh login (POST /logout)
+        status, page, _ = client.get("/")
+        if status not in (200, 302):
+            print(f"FAIL dashboard after setup HTTP {status}", file=sys.stderr)
+            return 1
+        _, _, headers = client.get("/")
+        # refresh csrf from any page
+        status, page, _ = client.get("/settings")
+        snapshot, csrf = extract_snapshot(page) if "wire:snapshot" in page else ("", "")
+        if not csrf:
+            m = re.search(r'<meta name="csrf-token" content="([^"]+)"', page)
+            csrf = m.group(1) if m else ""
+        try:
+            client.post("/logout", csrf)
+            evidence.append("logout ok")
+        except urllib.error.HTTPError as e:
+            if e.code not in (302, 303):
+                print(f"FAIL logout HTTP {e.code}", file=sys.stderr)
+                return 1
+            evidence.append("logout redirected")
+
+    # Fresh login session
+    login_client = PanelClient(args.base)
+    status, page, _ = login_client.get("/login")
+    if status != 200:
+        print(f"FAIL login page HTTP {status}", file=sys.stderr)
+        return 1
+    snapshot, csrf = extract_snapshot(page)
+
+    if args.typo_test:
+        for wrong in ("wrong-password-1!", "wrong-password-2!"):
+            bad = login_client.livewire_call(
+                "/login",
+                snapshot,
+                csrf,
+                {"email": args.email, "password": wrong},
+                "authenticate",
+            )
+            snap = bad.get("components", [{}])[0].get("snapshot")
+            if snap:
+                snapshot = snap
+            errs = bad.get("components", [{}])[0].get("snapshot", "")
+            if "Those credentials do not match" not in errs and "errors" not in json.dumps(bad):
+                print(f"WARN typo did not surface expected error: {json.dumps(bad)[:300]}")
+        evidence.append("typo attempts did not lock out")
+
+    result = login_client.livewire_call(
+        "/login",
+        snapshot,
+        csrf,
+        {"email": args.email, "password": args.password},
+        "authenticate",
+    )
+    redirect = _component_redirect(result)
+    if "/login" in redirect or not redirect:
+        print(f"FAIL first-attempt login: {json.dumps(result)[:500]}", file=sys.stderr)
+        return 1
+    evidence.append(f"login redirect={redirect}")
+
+    status, dash, _ = login_client.get("/")
+    if status != 200 or "Sign in" in dash:
+        print("FAIL dashboard not authenticated after login", file=sys.stderr)
+        return 1
+    evidence.append("dashboard authenticated")
+
+    print("PASS ui-flow-verify")
+    for line in evidence:
+        print(f"  {line}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

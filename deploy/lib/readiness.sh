@@ -50,5 +50,11 @@ print_install_success() {
         fi
     fi
     echo
-    echo "  No admin account exists yet. Complete /setup before signing in."
+    if command -v sqlite3 >/dev/null 2>&1 \
+        && [[ -f /var/lib/azerioid-panel/panel.sqlite ]] \
+        && sqlite3 /var/lib/azerioid-panel/panel.sqlite "SELECT COUNT(*) FROM users;" 2>/dev/null | grep -q '^[1-9]'; then
+        echo "  Admin account already exists — open ${login_url} to sign in."
+    else
+        echo "  No admin account exists yet. Complete /setup before signing in."
+    fi
 }
