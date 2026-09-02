@@ -35,6 +35,9 @@ final class FakeBroker
     /** @var array<string, array<string, mixed>> keyed by program name */
     public array $supervisorPrograms = [];
 
+    /** @var array<string, array<string, mixed>> */
+    public array $terminalSessions = [];
+
     public function __construct()
     {
         $this->reset();
@@ -48,9 +51,23 @@ final class FakeBroker
         $this->fakeInstalledComponents = [];
         $this->fakeObservedComponents = [];
         $this->supervisorPrograms = [];
+        $this->terminalSessions = [];
         $this->databaseEngine = 'mariadb';
         $this->postgresqlConfigured = false;
         $this->vhosts = [
+            [
+                'domains' => ['shop.example.com'],
+                'domain' => 'shop.example.com',
+                'root' => '/data/www/shop.example.com',
+                'php_socket' => 'unix//run/php/php8.4-fpm.sock',
+                'php_version' => '8.4',
+                'type' => 'php',
+                'tls' => true,
+                'reverse_proxy' => null,
+                'readonly' => false,
+                'enabled' => true,
+                'source' => '/etc/caddy/conf.d/shop.example.com.conf',
+            ],
             [
                 'domains' => ['projob.az'],
                 'domain' => 'projob.az',
@@ -170,6 +187,12 @@ final class FakeBroker
                 'supervisor.program.status' => $this->supervisorProgramStatus($args),
                 'supervisor.program.start', 'supervisor.program.stop', 'supervisor.program.restart' => $this->supervisorProgramControl($action, $args),
                 'supervisor.program.logs' => $this->supervisorProgramLogs($args, $stdin),
+                'terminal.session.start' => $this->terminalSessionStart($args, $stdin),
+                'terminal.session.stop' => $this->terminalSessionStop($args),
+                'terminal.session.heartbeat' => $this->terminalSessionHeartbeat($args),
+                'terminal.session.list' => $this->terminalSessionList(),
+                'terminal.session.status' => $this->terminalSessionStatus($args),
+                'terminal.session.cleanup' => $this->terminalSessionCleanup(),
                 default => throw new BrokerCallException('Unknown action.', 2),
             };
             return new BrokerResponse(true, $data, null, 0);
@@ -858,5 +881,95 @@ final class FakeBroker
             'stdout' => "fake stdout for {$name}\nline 2",
             'stderr' => '',
         ];
+    }
+
+    /** @param list<string> $args @param array<string, mixed> $stdin */
+    private function terminalSessionStart(array $args, array $stdin): array
+    {
+        $domain = (string) ($args[0] ?? '');
+        foreach ($this->vhosts as $v) {
+            if (($v['domain'] ?? '') !== $domain) {
+                continue;
+            }
+            if (! empty($v['readonly'])) {
+                throw new BrokerCallException('Terminal access is not available for read-only or system vhosts.', 3);
+            }
+            $id = bin2hex(random_bytes(16));
+            $this->terminalSessions[$id] = [
+                'id' => $id,
+                'domain' => $domain,
+                'root' => $v['root'] ?? '',
+                'username' => 'az-vh-' . str_replace('.', '-', $domain),
+                'port' => 35001,
+                'pid' => 4242,
+                'admin_user_id' => (string) ($stdin['admin_user_id'] ?? ''),
+                'source_ip' => (string) ($stdin['source_ip'] ?? ''),
+                'started_at' => gmdate('c'),
+                'expires_at' => gmdate('c', time() + 1200),
+            ];
+
+            return [
+                'session_id' => $id,
+                'domain' => $domain,
+                'root' => $v['root'] ?? '',
+                'username' => $this->terminalSessions[$id]['username'],
+                'ws_path' => '/terminal/' . $id,
+                'idle_seconds' => 1200,
+                'started_at' => $this->terminalSessions[$id]['started_at'],
+            ];
+        }
+        throw new BrokerCallException('Vhost not found.', 2);
+    }
+
+    /** @param list<string> $args */
+    private function terminalSessionStop(array $args): array
+    {
+        $id = (string) ($args[0] ?? '');
+        if (! isset($this->terminalSessions[$id])) {
+            throw new BrokerCallException('Terminal session not found.', 2);
+        }
+        $session = $this->terminalSessions[$id];
+        unset($this->terminalSessions[$id]);
+
+        return [
+            'stopped' => true,
+            'session_id' => $id,
+            'domain' => $session['domain'] ?? '',
+            'duration_seconds' => 60,
+            'admin_user_id' => $session['admin_user_id'] ?? null,
+        ];
+    }
+
+    /** @param list<string> $args */
+    private function terminalSessionHeartbeat(array $args): array
+    {
+        $id = (string) ($args[0] ?? '');
+        if (! isset($this->terminalSessions[$id])) {
+            throw new BrokerCallException('Terminal session not found.', 2);
+        }
+        $this->terminalSessions[$id]['expires_at'] = gmdate('c', time() + 1200);
+
+        return ['session_id' => $id, 'expires_at' => $this->terminalSessions[$id]['expires_at']];
+    }
+
+    private function terminalSessionList(): array
+    {
+        return ['sessions' => array_values($this->terminalSessions)];
+    }
+
+    /** @param list<string> $args */
+    private function terminalSessionStatus(array $args): array
+    {
+        $id = (string) ($args[0] ?? '');
+        if (! isset($this->terminalSessions[$id])) {
+            throw new BrokerCallException('Terminal session not found.', 2);
+        }
+
+        return $this->terminalSessions[$id];
+    }
+
+    private function terminalSessionCleanup(): array
+    {
+        return ['removed' => []];
     }
 }

@@ -9,6 +9,7 @@ use AzerioidPanel\Broker\CaddyCli;
 use AzerioidPanel\Broker\CaddyParser;
 use AzerioidPanel\Broker\Config;
 use AzerioidPanel\Broker\Runtime;
+use AzerioidPanel\Broker\Vhost\VhostUser;
 
 final class CaddyDriver implements WebServerDriver
 {
@@ -57,6 +58,10 @@ final class CaddyDriver implements WebServerDriver
         $contents = $this->render($runtime, $config, $domain, $root, $type, $phpVersion, $upstream);
         if (!$runtime->isDir($root)) {
             $runtime->mkdir($root, 0755);
+        }
+        if ($type !== 'proxy') {
+            VhostUser::ensure($runtime, $config, $domain, $root);
+        } else {
             $runtime->chown($root, $config->phpUser, $config->phpGroup);
         }
         $this->ensureAccessLog($runtime, $config, $domain);

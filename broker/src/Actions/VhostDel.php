@@ -7,7 +7,9 @@ use AzerioidPanel\Broker\BrokerException;
 use AzerioidPanel\Broker\Config;
 use AzerioidPanel\Broker\Runtime;
 use AzerioidPanel\Broker\Supervisor\SupervisorManager;
+use AzerioidPanel\Broker\Terminal\TerminalManager;
 use AzerioidPanel\Broker\Validator;
+use AzerioidPanel\Broker\Vhost\VhostUser;
 use AzerioidPanel\Broker\Web\WebServers;
 
 final class VhostDel
@@ -38,6 +40,10 @@ final class VhostDel
         foreach ($linked as $program) {
             $manager->delete((string) $program['name']);
         }
+
+        $terminal = new TerminalManager($config, $runtime);
+        $terminal->stopForVhost($domain);
+        VhostUser::deprovision($runtime, $config, $domain);
 
         return WebServers::for($config)->removeVhost($runtime, $config, $domain);
     }

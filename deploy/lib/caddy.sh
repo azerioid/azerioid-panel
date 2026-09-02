@@ -82,6 +82,7 @@ snippet, prefix, port, access, public_ip, public_domain = sys.argv[1:7]
 web = prefix + "/web/public"
 sock = "unix//run/php/azerioid-panel.sock"
 common = f"""    encode gzip zstd
+    import /var/lib/azerioid-panel/caddy-terminal-routes.conf
     root * {web}
     php_fastcgi {sock}
     file_server

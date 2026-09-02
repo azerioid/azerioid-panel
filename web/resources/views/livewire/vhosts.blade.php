@@ -109,6 +109,7 @@
                                 <a href="/processes" class="text-xs text-accent" title="Supervisor processes">{{ count($supervisorByVhost[$v['domain']]) }} proc</a>
                             @endif
                             @if (empty($v['readonly']))
+                                <a href="/vhosts/{{ $v['domain'] }}/terminal" class="text-xs text-accent">Terminal</a>
                                 <button type="button" class="text-xs text-accent" wire:click="startEdit('{{ $v['domain'] }}')">Edit</button>
                                 <button type="button" class="text-xs text-bad" wire:click="askDelete('{{ $v['domain'] }}')">Delete</button>
                             @endif

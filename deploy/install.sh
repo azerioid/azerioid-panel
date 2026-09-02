@@ -174,6 +174,8 @@ echo "==> Stack Manager bootstrap into ${PREFIX}"
 
 setup_repos
 bootstrap_packages
+source "${LIB}/ttyd.sh"
+install_ttyd
 apply_selinux
 install_broker
 install_panel_app

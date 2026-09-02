@@ -45,6 +45,7 @@ use AzerioidPanel\Broker\Actions\StatusAll;
 use AzerioidPanel\Broker\Actions\SupervisorProgram;
 use AzerioidPanel\Broker\Actions\SystemReboot;
 use AzerioidPanel\Broker\Actions\SystemRebootRequired;
+use AzerioidPanel\Broker\Actions\TerminalSession;
 use AzerioidPanel\Broker\Actions\TlsCerts;
 use AzerioidPanel\Broker\Actions\UpdatesApply;
 use AzerioidPanel\Broker\Actions\UpdatesList;
@@ -127,6 +128,12 @@ final class Kernel
         'supervisor.program.stop' => SupervisorProgram::class,
         'supervisor.program.restart' => SupervisorProgram::class,
         'supervisor.program.logs' => SupervisorProgram::class,
+        'terminal.session.start' => TerminalSession::class,
+        'terminal.session.stop' => TerminalSession::class,
+        'terminal.session.heartbeat' => TerminalSession::class,
+        'terminal.session.list' => TerminalSession::class,
+        'terminal.session.status' => TerminalSession::class,
+        'terminal.session.cleanup' => TerminalSession::class,
     ];
 
     public function __construct(

@@ -17,6 +17,9 @@ use App\Livewire\ServicesPage;
 use App\Livewire\SettingsPage;
 use App\Livewire\UpdatesPage;
 use App\Livewire\VhostsPage;
+use App\Http\Controllers\TerminalAuthController;
+use App\Http\Controllers\TerminalSessionController;
+use App\Livewire\VhostTerminalPage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -34,12 +37,19 @@ Route::post('/logout', function () {
     return redirect()->route('login');
 })->middleware('auth')->name('logout');
 
+Route::get('/internal/terminal/auth/{sessionId}', TerminalAuthController::class)
+    ->middleware('auth')
+    ->name('terminal.auth');
+
 Route::middleware(['auth', '2fa'])->group(function () {
     Route::get('/two-factor/setup', TwoFactorSetup::class)->name('two-factor.setup');
     Route::get('/', Dashboard::class)->name('dashboard');
     Route::get('/alerts', AlertsPage::class)->name('alerts');
     Route::get('/updates', UpdatesPage::class)->name('updates');
     Route::get('/vhosts', VhostsPage::class)->name('vhosts');
+    Route::get('/vhosts/{domain}/terminal', VhostTerminalPage::class)->name('vhosts.terminal');
+    Route::post('/terminal/heartbeat/{sessionId}', [TerminalSessionController::class, 'heartbeat'])->name('terminal.heartbeat');
+    Route::post('/terminal/stop/{sessionId}', [TerminalSessionController::class, 'stop'])->name('terminal.stop');
     Route::get('/databases', DatabasesPage::class)->name('databases');
     Route::get('/backups', BackupsPage::class)->name('backups');
     Route::get('/services', ServicesPage::class)->name('services');

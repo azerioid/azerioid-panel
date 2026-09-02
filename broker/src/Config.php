@@ -45,6 +45,14 @@ final class Config
     public string $cronDPath = '/etc/cron.d/azerioid-panel';
     public string $webUser = 'caddy';
 
+    public string $ttydBin = '/usr/local/bin/ttyd';
+    public string $terminalSessionsPath = '/var/lib/azerioid-panel/terminal-sessions.json';
+    public string $terminalCaddyRoutesPath = '/var/lib/azerioid-panel/caddy-terminal-routes.conf';
+    public int $panelPort = 3169;
+    public int $terminalIdleSeconds = 1200;
+    public int $terminalPortMin = 35000;
+    public int $terminalPortMax = 35999;
+
     public string $panelPhpVersion = '8.4';
     public string $panelFpmSocket = '/run/php/azerioid-panel.sock';
     public string $panelFpmPool = 'azerioid-panel';
@@ -125,6 +133,15 @@ final class Config
         $cfg->artisanPath = (string) ($data['paths']['artisan'] ?? $cfg->artisanPath);
         $cfg->stagingDir = (string) ($data['paths']['staging_dir'] ?? $cfg->stagingDir);
         $cfg->cronDPath = (string) ($data['paths']['cron_d'] ?? $cfg->cronDPath);
+        $cfg->ttydBin = (string) ($data['paths']['ttyd_bin'] ?? $cfg->ttydBin);
+        $cfg->terminalSessionsPath = (string) ($data['paths']['terminal_sessions'] ?? $cfg->terminalSessionsPath);
+        $cfg->terminalCaddyRoutesPath = (string) ($data['paths']['terminal_caddy_routes'] ?? $cfg->terminalCaddyRoutesPath);
+        $cfg->panelPort = (int) ($data['panel_port'] ?? $cfg->panelPort);
+        $cfg->terminalIdleSeconds = (int) ($data['terminal_idle_seconds'] ?? $cfg->terminalIdleSeconds);
+        if (isset($data['terminal_ports']) && is_array($data['terminal_ports'])) {
+            $cfg->terminalPortMin = (int) ($data['terminal_ports']['min'] ?? $cfg->terminalPortMin);
+            $cfg->terminalPortMax = (int) ($data['terminal_ports']['max'] ?? $cfg->terminalPortMax);
+        }
         $cfg->webUser = (string) ($data['web_user'] ?? $cfg->webUser);
         $cfg->phpUser = $cfg->webUser;
         $cfg->phpGroup = $cfg->webUser;

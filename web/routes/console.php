@@ -14,3 +14,7 @@ Artisan::command('inspire', function () {
 Schedule::command(SampleMetrics::class)->everyMinute()->withoutOverlapping();
 Schedule::command(EvaluateAlerts::class)->everyMinute()->withoutOverlapping();
 Schedule::command(RunScheduledBackup::class)->hourly()->withoutOverlapping();
+
+Schedule::call(function () {
+    app(\App\Services\Broker\BrokerClient::class)->call('terminal.session.cleanup', [], [], null, false);
+})->everyMinute()->name('terminal-session-cleanup')->withoutOverlapping();
