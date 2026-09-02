@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\Hash;
 
 class CreatePanelAdmin extends Command
 {
+    /** Distinct exit code for idempotent installer re-runs (not a genuine failure). */
+    public const EXIT_ALREADY_EXISTS = 2;
+
     protected $signature = 'panel:create-admin
         {--email= : Admin login email}
         {--name=Admin : Display name}
@@ -19,9 +22,10 @@ class CreatePanelAdmin extends Command
     public function handle(): int
     {
         if (User::query()->exists()) {
-            $this->error('An admin account already exists. Refusing to create another.');
+            $existing = User::query()->orderBy('id')->value('email') ?: 'unknown';
+            $this->line("Admin account already exists ({$existing}).");
 
-            return self::FAILURE;
+            return self::EXIT_ALREADY_EXISTS;
         }
 
         $email = trim((string) ($this->option('email') ?: ''));

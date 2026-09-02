@@ -1,0 +1,92 @@
+#!/usr/bin/expect -f
+# Drive stack-manager.sh interactive prompts over a real TTY (SSH -t / expect).
+# Usage: interactive-install.exp [public|tunnel] [totp_y|totp_n] [admin_y|admin_n] [email] [password]
+set timeout 900
+set access [lindex $argv 0]
+if {$access eq ""} { set access "public" }
+set totp [lindex $argv 1]
+if {$totp eq ""} { set totp "n" }
+set create_admin [lindex $argv 2]
+if {$create_admin eq ""} { set create_admin "y" }
+set admin_email [lindex $argv 3]
+if {$admin_email eq ""} { set admin_email "admin@example.com" }
+set admin_password [lindex $argv 4]
+if {$admin_password eq ""} { set admin_password "password" }
+
+set cmd [lindex $argv 5]
+if {$cmd eq ""} { set cmd "./stack-manager.sh" }
+
+log_user 1
+eval spawn $cmd
+
+expect {
+    -re "Access mode \\(tunnel/public\\)" {
+        send "$access\r"
+        exp_continue
+    }
+    -re "Domain for automatic HTTPS" {
+        send "\r"
+        exp_continue
+    }
+    -re "Public IP \\(blank = auto-detect\\)" {
+        send "\r"
+        exp_continue
+    }
+    -re "Panel port" {
+        send "\r"
+        exp_continue
+    }
+    -re "Require TOTP for admins\\?" {
+        send "$totp\r"
+        exp_continue
+    }
+    -re "Open firewall for the panel port\\?" {
+        send "y\r"
+        exp_continue
+    }
+    -re "Install fail2ban jail" {
+        send "y\r"
+        exp_continue
+    }
+    -re "Allowlist IPs comma-separated" {
+        send "\r"
+        exp_continue
+    }
+    -re "Create default admin now\\?" {
+        send "$create_admin\r"
+        exp_continue
+    }
+    -re "Admin email" {
+        if {$create_admin eq "y" || $create_admin eq "Y"} {
+            if {$admin_email eq "admin@example.com"} {
+                send "\r"
+            } else {
+                send "$admin_email\r"
+            }
+        }
+        exp_continue
+    }
+    -re "Admin password" {
+        if {$create_admin eq "y" || $create_admin eq "Y"} {
+            if {$admin_password eq "password"} {
+                send "\r"
+            } else {
+                send "$admin_password\r"
+            }
+        }
+        exp_continue
+    }
+    "Stack Manager installed." {
+        exp_continue
+    }
+    eof {
+        catch wait result
+        set exit_code [lindex $result 3]
+        if {$exit_code eq ""} { set exit_code 0 }
+        exit $exit_code
+    }
+    timeout {
+        puts stderr "TIMEOUT waiting for installer prompt"
+        exit 124
+    }
+}

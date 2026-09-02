@@ -3,16 +3,43 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
+import hmac
 import html
 import json
 import re
 import ssl
+import struct
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from http.cookiejar import CookieJar
 from typing import Any
+
+
+def totp_code(secret: str, when: float | None = None) -> str:
+    """RFC 6238 TOTP (SHA1, 30s step) for Google Authenticator-compatible secrets."""
+    pad = "=" * ((8 - len(secret) % 8) % 8)
+    key = base64.b32decode(secret.upper() + pad, casefold=True)
+    counter = int((when or time.time()) // 30)
+    msg = struct.pack(">Q", counter)
+    digest = hmac.new(key, msg, hashlib.sha1).digest()
+    offset = digest[-1] & 0x0F
+    code = struct.unpack(">I", digest[offset : offset + 4])[0] & 0x7FFFFFFF
+    return str(code % 1_000_000).zfill(6)
+
+
+def snapshot_data(snapshot: str) -> dict[str, Any]:
+    payload = json.loads(snapshot)
+    data = payload.get("data")
+    if isinstance(data, dict):
+        return data
+    memo = payload.get("memo", {})
+    inner = memo.get("data")
+    return inner if isinstance(inner, dict) else {}
 
 
 def _component_redirect(result: dict[str, Any]) -> str:
@@ -107,6 +134,16 @@ def main() -> int:
     parser.add_argument("--name", default="Admin")
     parser.add_argument("--skip-setup", action="store_true")
     parser.add_argument("--typo-test", action="store_true", help="Try two wrong passwords before real login")
+    parser.add_argument(
+        "--require-totp-setup",
+        action="store_true",
+        help="After login, require redirect to /two-factor/setup",
+    )
+    parser.add_argument(
+        "--complete-totp",
+        action="store_true",
+        help="With --require-totp-setup, complete 2FA enrollment and verify dashboard login",
+    )
     args = parser.parse_args()
 
     client = PanelClient(args.base)
@@ -194,6 +231,53 @@ def main() -> int:
         print(f"FAIL first-attempt login: {json.dumps(result)[:500]}", file=sys.stderr)
         return 1
     evidence.append(f"login redirect={redirect}")
+
+    if args.require_totp_setup:
+        if "two-factor/setup" not in redirect:
+            print(f"FAIL expected /two-factor/setup redirect, got {redirect}", file=sys.stderr)
+            return 1
+        evidence.append("totp enrollment required")
+
+        if args.complete_totp:
+            status, setup_page, _ = login_client.get("/two-factor/setup")
+            if status != 200:
+                print(f"FAIL TOTP setup page HTTP {status}", file=sys.stderr)
+                return 1
+            setup_snapshot, setup_csrf = extract_snapshot(setup_page)
+            secret = str(snapshot_data(setup_snapshot).get("secret") or "")
+            if len(secret) < 8:
+                print("FAIL could not read TOTP secret from setup page snapshot", file=sys.stderr)
+                return 1
+            code = totp_code(secret)
+            confirm = login_client.livewire_call(
+                "/two-factor/setup",
+                setup_snapshot,
+                setup_csrf,
+                {"code": code},
+                "confirm",
+            )
+            confirm_redirect = _component_redirect(confirm)
+            if not confirm_redirect or "login" in confirm_redirect:
+                print(f"FAIL TOTP confirm: {json.dumps(confirm)[:500]}", file=sys.stderr)
+                return 1
+            evidence.append(f"totp confirm redirect={confirm_redirect}")
+
+            status, dash, _ = login_client.get("/")
+            if status != 200 or "Sign in" in dash:
+                print("FAIL dashboard not authenticated after TOTP enrollment", file=sys.stderr)
+                return 1
+            evidence.append("dashboard authenticated after totp enrollment")
+        else:
+            status, setup_page, _ = login_client.get("/two-factor/setup")
+            if status != 200 or "wire:snapshot" not in setup_page:
+                print("FAIL TOTP setup page not reachable after login", file=sys.stderr)
+                return 1
+            evidence.append("totp setup page reachable")
+
+        print("PASS ui-flow-verify")
+        for line in evidence:
+            print(f"  {line}")
+        return 0
 
     status, dash, _ = login_client.get("/")
     if status != 200 or "Sign in" in dash:

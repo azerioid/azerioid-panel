@@ -14,6 +14,20 @@ _admin_create_manual_hint() {
     echo "          bash -c 'cd ${PREFIX}/web && $(php_bin) artisan panel:create-admin --email=you@example.com'"
 }
 
+_panel_admin_email_if_exists() {
+    if command -v sqlite3 >/dev/null 2>&1 \
+        && [[ -f /var/lib/azerioid-panel/panel.sqlite ]]; then
+        sqlite3 /var/lib/azerioid-panel/panel.sqlite "SELECT email FROM users ORDER BY id LIMIT 1;" 2>/dev/null || true
+    fi
+}
+
+_skip_existing_admin_message() {
+    local email="$1"
+    echo "==> Admin account already exists (${email}) — skipping creation."
+    ADMIN_CREATE_FAILED=0
+    export ADMIN_CREATE_FAILED
+}
+
 _invoke_create_panel_admin() {
     local php_bin="$1"
     local allow_opt="${2:-}"
@@ -32,6 +46,13 @@ create_install_admin() {
         *) ADMIN_CREATE_FAILED=0; export ADMIN_CREATE_FAILED; return 0 ;;
     esac
 
+    local existing_email
+    existing_email="$(_panel_admin_email_if_exists)"
+    if [[ -n "${existing_email}" ]]; then
+        _skip_existing_admin_message "${existing_email}"
+        return 0
+    fi
+
     echo "==> Creating admin account (${ADMIN_EMAIL})"
     local php_bin allow_opt="" admin_password="${ADMIN_PASSWORD}" attempt=1 max_attempts=1
     php_bin="$(php_bin)"
@@ -42,9 +63,19 @@ create_install_admin() {
     fi
 
     while [[ "${attempt}" -le "${max_attempts}" ]]; do
-        if _invoke_create_panel_admin "${php_bin}" "${allow_opt}" "${admin_password}"; then
+        local rc=0
+        _invoke_create_panel_admin "${php_bin}" "${allow_opt}" "${admin_password}" || rc=$?
+
+        if [[ "${rc}" -eq 0 ]]; then
             ADMIN_CREATE_FAILED=0
             export ADMIN_CREATE_FAILED
+            admin_password=""
+            return 0
+        fi
+
+        if [[ "${rc}" -eq 2 ]]; then
+            existing_email="$(_panel_admin_email_if_exists)"
+            _skip_existing_admin_message "${existing_email:-${ADMIN_EMAIL}}"
             admin_password=""
             return 0
         fi
@@ -57,6 +88,11 @@ create_install_admin() {
 
         if [[ "${attempt}" -ge "${max_attempts}" ]]; then
             echo ""
+            if [[ "${NON_INTERACTIVE:-0}" -eq 1 ]]; then
+                warn "Admin account creation failed — aborting non-interactive install."
+                admin_password=""
+                exit 1
+            fi
             warn "Continuing install without an admin account — see summary for next steps."
             admin_password=""
             return 0
@@ -70,7 +106,7 @@ create_install_admin() {
             attempt=$((attempt + 1))
         else
             admin_password=""
-            return 0
+            exit 1
         fi
     done
 
