@@ -25,7 +25,9 @@ _skip_existing_admin_message() {
     local email="$1"
     echo "==> Admin account already exists (${email}) — skipping creation."
     ADMIN_CREATE_FAILED=0
-    export ADMIN_CREATE_FAILED
+    INSTALL_USED_DEFAULT_ADMIN_PASSWORD=0
+    INSTALL_USED_DEFAULT_ADMIN_EMAIL=0
+    export ADMIN_CREATE_FAILED INSTALL_USED_DEFAULT_ADMIN_PASSWORD INSTALL_USED_DEFAULT_ADMIN_EMAIL
 }
 
 _invoke_create_panel_admin() {
@@ -121,9 +123,13 @@ print_install_warnings() {
     fi
 
     if [[ "${ACCESS:-tunnel}" == "public" && "${INSTALL_USED_DEFAULT_ADMIN_PASSWORD:-0}" -eq 1 && "${ADMIN_CREATE_FAILED:-0}" -eq 0 ]]; then
+        local warn_email="${ADMIN_EMAIL}"
+        local existing_email
+        existing_email="$(_panel_admin_email_if_exists)"
+        [[ -n "${existing_email}" ]] && warn_email="${existing_email}"
         echo ""
         echo "${C_RED}⚠ SECURITY: Default admin password is in use on a public panel.${C_RST}"
         echo "  Change it immediately after first login (Settings → Password)."
-        echo "  Admin email: ${ADMIN_EMAIL}"
+        echo "  Admin email: ${warn_email}"
     fi
 }

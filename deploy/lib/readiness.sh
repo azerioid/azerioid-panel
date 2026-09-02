@@ -21,6 +21,34 @@ wait_for_panel_ready() {
     die "Panel is not reachable on 127.0.0.1:${port} (FPM socket, queue worker, or HTTP check failed)."
 }
 
+verify_public_panel_ready() {
+    [[ "${ACCESS:-tunnel}" == "public" ]] || return 0
+
+    local port="${PANEL_PORT}"
+    local ip="${PANEL_PUBLIC_IP:-}"
+    [[ -z "${ip}" ]] && ip="$(detect_public_ip 2>/dev/null || true)"
+    [[ -n "${ip}" ]] || die "Public access: could not determine public IP for readiness check."
+
+    if ! ss -tln 2>/dev/null | awk '{print $4}' | grep -qE "^(\[::\]:|\*:|0\.0\.0\.0:)${port}$"; then
+        die "Public access: port ${port} is not listening on all interfaces (public Caddy bind missing)."
+    fi
+
+    local i code
+    echo "==> Verifying public HTTPS on ${ip}:${port}"
+    for i in $(seq 1 30); do
+        code="$(curl -kfsSI --connect-timeout 3 --max-time 5 "https://${ip}:${port}/login" 2>/dev/null | head -n1 || true)"
+        if echo "${code}" | grep -qE 'HTTP/[0-9.]+ (200|302)'; then
+            export PUBLIC_READINESS_VERIFIED=1
+            return 0
+        fi
+        sleep 0.5
+    done
+
+    warn "Public HTTPS self-check failed: https://${ip}:${port}/login not reachable from this host."
+    warn "Tunnel access may still work; if external browsers cannot connect, check your cloud provider firewall."
+    export PUBLIC_READINESS_VERIFIED=0
+}
+
 panel_public_url() {
     if [[ "${ACCESS:-tunnel}" != "public" ]]; then
         return 1
@@ -78,6 +106,15 @@ print_install_success() {
         else
             echo "  Public:    ${public_url}/login  (self-signed TLS; accept the certificate warning)"
         fi
+        if [[ "${PUBLIC_READINESS_VERIFIED:-0}" -eq 1 ]]; then
+            echo "  Verified:  public HTTPS reachable from this host."
+        elif [[ "${PUBLIC_READINESS_VERIFIED:-}" == "0" ]]; then
+            echo "  Warning:   public HTTPS self-check did not pass — see installer warnings above."
+        fi
+        echo "             If unreachable from outside, check your cloud provider firewall allows inbound TCP ${PANEL_PORT}."
+    fi
+    if [[ "${DO_FAIL2BAN:-false}" == "true" ]]; then
+        echo "             fail2ban: repeated failed logins block your IP from port ${PANEL_PORT} for 1h (connection refused)."
     fi
     echo
     if [[ "${admin_created}" -eq 1 ]]; then

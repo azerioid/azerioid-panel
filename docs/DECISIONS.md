@@ -76,3 +76,17 @@ ADR-style record of locked decisions for Stack Manager.
 
 **Status:** Accepted (P1)  
 **Decision:** Self-contained installer installs Caddy + PHP 8.4 + SQLite. No `lcmp`/`lamp` prerequisite. Legacy detection becomes adopt path (P5).
+
+## A20 — fail2ban flush on every install/reinstall
+
+**Status:** Accepted (operator decision, 2026-09-02)  
+**Decision:** On every Stack Manager install or reinstall (not scoped to fresh-install-only), the installer:
+
+1. Unbans all IPs in the **`azerioid-panel` fail2ban jail only** (never touches other jails such as `sshd`).
+2. Truncates **`/var/log/azerioid-panel/auth-fail.log`** only.
+
+The uninstall path performs the same panel-scoped flush before removing the jail config.
+
+**Rationale:** A `--drop-db` reinstall previously left `auth-fail.log` intact; fail2ban re-read it on jail enable and immediately re-banned the operator's IP, causing `ERR_CONNECTION_REFUSED` on a working install. Flushing on every run prevents self-lockout from stale ban state.
+
+**Accepted tradeoff:** Ban history and accumulated failed-login records for the panel jail are wiped on each install/reinstall. An operator who reinstalls frequently loses attack-history signal in that log. This is intentional simplicity over retaining cross-reinstall ban history — do not "fix" this as a bug without an explicit ADR change.

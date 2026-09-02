@@ -159,6 +159,15 @@ rm -f /etc/sudoers.d/azerioid-panel
 visudo -c >/dev/null 2>&1 || echo "Warning: visudo -c failed after removing panel sudoers." >&2
 rm -f /etc/cron.d/azerioid-panel
 
+if command -v fail2ban-client >/dev/null 2>&1 \
+    && fail2ban-client status azerioid-panel >/dev/null 2>&1; then
+    for ip in $(fail2ban-client status azerioid-panel 2>/dev/null | sed -n 's/.*Banned IP list:[[:space:]]*//p'); do
+        [[ -n "${ip}" ]] || continue
+        fail2ban-client set azerioid-panel unbanip "${ip}" >/dev/null 2>&1 || true
+    done
+fi
+: > /var/log/azerioid-panel/auth-fail.log 2>/dev/null || true
+
 rm -f /etc/fail2ban/filter.d/azerioid-panel.conf /etc/fail2ban/jail.d/azerioid-panel.conf
 systemctl reload fail2ban 2>/dev/null || true
 

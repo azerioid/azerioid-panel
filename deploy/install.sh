@@ -186,6 +186,7 @@ install_security
 write_bootstrap_json
 
 wait_for_panel_ready
+verify_public_panel_ready
 create_install_admin
 print_install_success
 print_install_warnings
