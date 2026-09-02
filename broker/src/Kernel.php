@@ -77,7 +77,7 @@ final class Kernel
         'vhost.del' => VhostDel::class,
         'caddy.apply' => CaddyApplyConfig::class,
         'web.reload' => CaddyApplyConfig::class,
-        'web.release_site_ports' => WebReleaseSitePorts::class,
+        'web.release-site-ports' => WebReleaseSitePorts::class,
         'db.list' => DbList::class,
         'db.add' => DbAdd::class,
         'db.del' => DbDel::class,

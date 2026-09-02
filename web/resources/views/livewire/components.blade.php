@@ -6,7 +6,7 @@
                 <p class="text-sm text-zinc-300">Resolve the port conflict, then retry:</p>
                 @foreach ($preflightRemediations as $remediation)
                     <p class="text-sm text-zinc-400">{{ $remediation['detail'] ?? '' }}</p>
-                    @if (($remediation['action'] ?? '') === 'web.release_site_ports')
+                    @if (($remediation['action'] ?? '') === 'web.release-site-ports')
                         <div class="flex gap-2">
                             <button type="button" class="btn-primary" wire:click="releaseSitePorts">
                                 {{ $remediation['label'] ?? 'Release site ports' }}

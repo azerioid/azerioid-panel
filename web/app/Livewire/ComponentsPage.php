@@ -186,7 +186,7 @@ class ComponentsPage extends Component
     {
         $this->flash = null;
         $this->error = null;
-        $response = $broker->call('web.release_site_ports');
+        $response = $broker->call('web.release-site-ports');
         if (!$response->ok) {
             $this->error = $response->error ?? 'Could not release site ports from panel Caddy.';
 

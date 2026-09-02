@@ -57,6 +57,6 @@ final class ComponentPreflightConflictTest extends TestCase
 
         $this->assertFalse($result['ok']);
         $this->assertNotEmpty($result['remediations']);
-        $this->assertSame('web.release_site_ports', $result['remediations'][0]['action']);
+        $this->assertSame('web.release-site-ports', $result['remediations'][0]['action']);
     }
 }

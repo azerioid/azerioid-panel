@@ -90,7 +90,7 @@ final class ComponentPreflight
         foreach ($issues as $issue) {
             if (str_contains($issue, ':80/:443')) {
                 return [[
-                    'action' => 'web.release_site_ports',
+                    'action' => 'web.release-site-ports',
                     'label' => 'Release :80/:443 from panel Caddy',
                     'detail' => 'Keeps the panel on its configured port (e.g. 3169). Site traffic can use Nginx or Apache.',
                 ]];
